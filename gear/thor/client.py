@@ -31,6 +31,7 @@ class ThorClient(object, metaclass=Singleton):
 
     def set_endpoint(self, endpoint):
         restful = Restful(endpoint)
+        self.eth_transactions = restful.transactions.eth
         self.transactions = restful.transactions
         self.blocks = restful.blocks
         self.accounts = restful.accounts
@@ -120,7 +121,7 @@ class ThorClient(object, metaclass=Singleton):
         data = {
             "raw": raw
         }
-        result = await self.transactions.make_request(post, data=data)
+        result = await self.eth_transactions.make_request(post, data=data)
         return _attribute(result, "id")
 
     async def get_transaction_by_hash(self, tx_hash):
@@ -141,6 +142,10 @@ class ThorClient(object, metaclass=Singleton):
     async def get_block(self, block_identifier):
         blk = await self.blocks(block_identifier).make_request(get)
         return None if blk is None else thor_block_convert_to_eth_block(blk)
+
+    async def get_transaction_count(self, address, tag):
+        nonce = '0x1'
+        return _attribute(nonce, "count")
 
     async def get_code(self, address, block_identifier):
         params = {

@@ -1,13 +1,13 @@
-import click
-import requests
-from .thor.client import thor
+from jsonrpcserver import async_dispatch
+from aiohttp import web
+from .rpc import make_version
 from .thor.account import (
     solo,
     keystore as _keystore,
 )
-from .rpc import make_version
-from aiohttp import web
-from jsonrpcserver import async_dispatch
+from .thor.client import thor
+import requests
+import click
 
 
 res_headers = {
@@ -18,9 +18,14 @@ res_headers = {
 
 
 async def handle(request, logging=False, debug=False):
+    jreq = await request.json()
+    method = jreq['method']
     request = await request.text()
+    print("RPC Call:", method)
     response = await async_dispatch(request, basic_logging=logging, debug=debug)
     if response.wanted:
+        print("-"*40+"\nRequest:", request, "\nResponse:",
+              str(response.deserialized())+"\n"+"-"*40)
         return web.json_response(response.deserialized(), headers=res_headers, status=response.http_status)
     else:
         return web.Response(headers=res_headers, content_type="text/plain")
@@ -59,7 +64,9 @@ async def handle(request, logging=False, debug=False):
     type=bool,
 )
 def run_server(host, port, endpoint, keystore, passcode, log, debug):
+    print('run server')
     try:
+        print(endpoint)
         response = requests.options(endpoint)
         response.raise_for_status()
     except requests.exceptions.ConnectionError:

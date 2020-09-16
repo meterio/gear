@@ -109,11 +109,11 @@ async def net_version():
 async def net_listening():
     return False
 
-
 #
 # evm_api
 # 没有真实实现, 只是为了实现接口
 #
+
 
 @method
 async def evm_snapshot():
@@ -155,6 +155,7 @@ async def eth_getStorageAt(address, position, block_identifier="best"):
 
 
 @method
+@async_serialize
 async def eth_getTransactionCount(address, block_identifier="best"):
     '''
     ethereum 用来处理 nonce, Thor 不需要
@@ -164,7 +165,10 @@ async def eth_getTransactionCount(address, block_identifier="best"):
 
 @method
 async def eth_accounts():
-    return thor.get_accounts()
+    print('get accounts')
+    accounts = thor.get_accounts()
+    print(accounts)
+    return accounts
 
 
 @method
@@ -199,8 +203,19 @@ async def eth_sendTransaction(transaction):
     '''
     发送未签名的交易
     '''
+    print('tx: ', transaction)
     formatted_transaction = input_transaction_formatter(transaction)
     return await thor.send_transaction(formatted_transaction)
+
+
+@method
+@async_serialize
+async def eth_sign(transaction):
+    '''
+    发送未签名的交易
+    '''
+    print('eth_sign tx: ', transaction)
+    return await {}
 
 
 @method
@@ -209,6 +224,7 @@ async def eth_sendRawTransaction(raw):
     '''
     发送已签名的交易
     '''
+    print('raw:', raw)
     return await thor.send_raw_transaction(raw)
 
 
