@@ -8,6 +8,7 @@ from .thor.account import (
 from .thor.client import thor
 import requests
 import click
+from datetime import datetime
 
 
 res_headers = {
@@ -21,10 +22,9 @@ async def handle(request, logging=False, debug=False):
     jreq = await request.json()
     method = jreq['method']
     request = await request.text()
-    print("RPC Call:", method)
     response = await async_dispatch(request, basic_logging=logging, debug=debug)
     if response.wanted:
-        print("-"*40+"\nRequest:", request, "\nResponse:",
+        print("-"*40+"\nRPC Call:", method, "\nTime: ", datetime.now().timestamp(), "\nRequest:", request, "\nResponse:",
               str(response.deserialized())+"\n"+"-"*40)
         return web.json_response(response.deserialized(), headers=res_headers, status=response.http_status)
     else:
