@@ -156,6 +156,12 @@ async def eth_getStorageAt(address, position, block_identifier="best"):
 
 @method
 @async_serialize
+async def eth_chainId():
+    return "0xee"
+
+
+@method
+@async_serialize
 async def eth_getTransactionCount(address, block_identifier="best"):
     '''
     ethereum 用来处理 nonce, Thor 不需要
