@@ -133,7 +133,7 @@ class MeterClient(object, metaclass=Singleton):
             "revision": block_identifier
         }
         accout = await self.accounts(address).make_request(get, params=params)
-        return _attribute(accout, "balance")
+        return _attribute(accout, "energy")
 
     async def get_transaction_receipt(self, tx_hash):
         receipt = await self.transactions(tx_hash).receipt.make_request(get)
