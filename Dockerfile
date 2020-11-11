@@ -30,7 +30,7 @@ WORKDIR /root/
 RUN rm -rf /root/artifacts
 
 # Test if command exist, installation complete.
-RUN bash -c '[[ $(which web3-gear) == "/usr/local/bin/web3-gear" ]] || exit 1'
+RUN bash -c '[[ $(which meter-gear) == "/usr/local/bin/meter-gear" ]] || exit 1'
 
 # Entry point
 COPY docker-entrypoint.sh /usr/local/bin/

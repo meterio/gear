@@ -1,9 +1,9 @@
 #!/bin/bash
 set -eo pipefail
 
-# if command starts with an option, prepend web3-gear
+# if command starts with an option, prepend meter-gear
 if [ "${1:0:1}" = '-' ]; then
-	set -- web3-gear "$@"
+	set -- meter-gear "$@"
 fi
 
 # Check if LISTEN_HOST is not set
@@ -20,25 +20,25 @@ else
   LISTEN_PORT="${LISTEN_PORT}"
 fi
 
-# Check if THOR_IP is not set
-if [[ -z "${THOR_IP}" ]]; then
-  echo "Env variable needed: eg. THOR_IP=127.0.0.1 or THOR_IP=www.example.com"
+# Check if METER_IP is not set
+if [[ -z "${METER_IP}" ]]; then
+  echo "Env variable needed: eg. METER_IP=127.0.0.1 or METER_IP=www.example.com"
   exit 1
 fi
 
-# check if THOR_PORT is not set
-if [[ -z "${THOR_PORT}" ]]; then
-  echo "Env variable needed: eg. THOR_PORT=8669"
+# check if METER_PORT is not set
+if [[ -z "${METER_PORT}" ]]; then
+  echo "Env variable needed: eg. METER_PORT=8669"
   exit 1
 fi
 
-# check if THOR_PROTOCOL is not set
-if [[ -z "${THOR_PROTOCOL}" ]]; then
-  THOR_PROTOCOL='http'
+# check if METER_PROTOCOL is not set
+if [[ -z "${METER_PROTOCOL}" ]]; then
+  METER_PROTOCOL='http'
 else
-  THOR_PROTOCOL="${THOR_PROTOCOL}"
+  METER_PROTOCOL="${METER_PROTOCOL}"
 fi
 
-echo "Using thor point: ${THOR_PROTOCOL}://${THOR_IP}:${THOR_PORT}"
+echo "Using meter point: ${METER_PROTOCOL}://${METER_IP}:${METER_PORT}"
 
-LC_ALL="C.UTF-8" LANG="C.UTF-8" web3-gear --host ${LISTEN_HOST} --port ${LISTEN_PORT} --endpoint "${THOR_PROTOCOL}://${THOR_IP}:${THOR_PORT}"
+LC_ALL="C.UTF-8" LANG="C.UTF-8" meter-gear --host ${LISTEN_HOST} --port ${LISTEN_PORT} --endpoint "${METER_PROTOCOL}://${METER_IP}:${METER_PORT}"

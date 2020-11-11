@@ -7,12 +7,12 @@ from gear.utils.types import (
     strip_0x
 )
 from gear.utils.compat import (
-    thor_block_convert_to_eth_block,
-    thor_receipt_convert_to_eth_receipt,
-    thor_tx_convert_to_eth_tx,
-    thor_log_convert_to_eth_log,
-    thor_storage_convert_to_eth_storage,
-    ThorTransaction,
+    meter_block_convert_to_eth_block,
+    meter_receipt_convert_to_eth_receipt,
+    meter_tx_convert_to_eth_tx,
+    meter_log_convert_to_eth_log,
+    meter_storage_convert_to_eth_storage,
+    MeterTransaction,
     intrinsic_gas,
 )
 from .request import (
@@ -25,7 +25,7 @@ from .request import (
 def _attribute(obj, key): return None if obj is None else obj[key]
 
 
-class ThorClient(object, metaclass=Singleton):
+class MeterClient(object, metaclass=Singleton):
     def __init__(self):
         self.filter = {}
 
@@ -69,7 +69,7 @@ class ThorClient(object, metaclass=Singleton):
         result = await self.debug("storage-range").make_request(post, data=data)
         if result is None:
             return None
-        result["storage"] = thor_storage_convert_to_eth_storage(
+        result["storage"] = meter_storage_convert_to_eth_storage(
             result["storage"])
         return result
 
@@ -110,9 +110,9 @@ class ThorClient(object, metaclass=Singleton):
         return _attribute(result, "data")
 
     async def send_transaction(self, transaction):
-        chain_tag = int((await thor.get_block(0))["hash"][-2:], 16)
-        blk_ref = int(strip_0x((await thor.get_block("best"))["hash"])[:8], 16)
-        tx = ThorTransaction(chain_tag, blk_ref, transaction)
+        chain_tag = int((await meter.get_block(0))["hash"][-2:], 16)
+        blk_ref = int(strip_0x((await meter.get_block("best"))["hash"])[:8], 16)
+        tx = MeterTransaction(chain_tag, blk_ref, transaction)
         tx.sign(self.account_manager.get_priv_by_addr(transaction["from"]))
         raw = "0x{}".format(encode_hex(rlp.encode(tx)))
         return await self.send_raw_transaction(raw)
@@ -126,7 +126,7 @@ class ThorClient(object, metaclass=Singleton):
 
     async def get_transaction_by_hash(self, tx_hash):
         tx = await self.transactions(tx_hash).make_request(get)
-        return None if tx is None else thor_tx_convert_to_eth_tx(tx)
+        return None if tx is None else meter_tx_convert_to_eth_tx(tx)
 
     async def get_balance(self, address, block_identifier):
         params = {
@@ -137,11 +137,11 @@ class ThorClient(object, metaclass=Singleton):
 
     async def get_transaction_receipt(self, tx_hash):
         receipt = await self.transactions(tx_hash).receipt.make_request(get)
-        return None if receipt is None else thor_receipt_convert_to_eth_receipt(receipt)
+        return None if receipt is None else meter_receipt_convert_to_eth_receipt(receipt)
 
     async def get_block(self, block_identifier):
         blk = await self.blocks(block_identifier).make_request(get)
-        return None if blk is None else thor_block_convert_to_eth_block(blk)
+        return None if blk is None else meter_block_convert_to_eth_block(blk)
 
     async def get_transaction_count(self, address, tag):
         nonce = '0x1'
@@ -174,7 +174,7 @@ class ThorClient(object, metaclass=Singleton):
             "address": address
         }
         logs = await self.events.make_request(post, data=query, params=params)
-        result = thor_log_convert_to_eth_log(address, logs)
+        result = meter_log_convert_to_eth_log(address, logs)
         return result
 
 
@@ -201,4 +201,4 @@ class BlockFilter(object):
         return result
 
 
-thor = ThorClient()
+meter = MeterClient()

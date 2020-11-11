@@ -42,7 +42,7 @@ BLOCK_FORMATTERS = {
 }
 
 
-def thor_block_convert_to_eth_block(block):
+def meter_block_convert_to_eth_block(block):
     return {
         ETH_BLOCK_KWARGS_MAP.get(k, k): BLOCK_FORMATTERS.get(k, noop)(v)
         for k, v in block.items()
@@ -52,7 +52,7 @@ def thor_block_convert_to_eth_block(block):
 #
 # receipt
 #
-def thor_receipt_convert_to_eth_receipt(receipt):
+def meter_receipt_convert_to_eth_receipt(receipt):
     return {
         "status": encode_number(0 if receipt["reverted"] else 1),
         "transactionHash": receipt["meta"]["txID"],
@@ -63,7 +63,7 @@ def thor_receipt_convert_to_eth_receipt(receipt):
         "gasUsed": encode_number(receipt["gasUsed"]),
         "contractAddress": None if receipt["reverted"] else receipt["outputs"][0]["contractAddress"],
         "logs": None if receipt["reverted"] else [
-            thor_receipt_log_convert_to_eth_log(receipt, index, log)
+            meter_receipt_log_convert_to_eth_log(receipt, index, log)
             for index, log in enumerate(receipt["outputs"][0]["events"])
         ],
     }
@@ -72,7 +72,7 @@ def thor_receipt_convert_to_eth_receipt(receipt):
 #
 # log
 #
-def thor_receipt_log_convert_to_eth_log(receipt, index, log):
+def meter_receipt_log_convert_to_eth_log(receipt, index, log):
     return {
         "type": "mined",
         "logIndex": encode_number(index),
@@ -86,7 +86,7 @@ def thor_receipt_log_convert_to_eth_log(receipt, index, log):
     }
 
 
-def thor_log_convert_to_eth_log(address, logs):
+def meter_log_convert_to_eth_log(address, logs):
     if logs:
         return [
             {
@@ -107,7 +107,7 @@ def thor_log_convert_to_eth_log(address, logs):
 #
 # transaction
 #
-def thor_tx_convert_to_eth_tx(tx):
+def meter_tx_convert_to_eth_tx(tx):
     return {
         "hash": tx["id"],
         "nonce": tx["nonce"],
@@ -126,8 +126,9 @@ def thor_tx_convert_to_eth_tx(tx):
 #
 # storage
 #
-def thor_storage_convert_to_eth_storage(storage):
-    def _convert_hash(key): return "0x{}".format(encode_hex(sha3(to_bytes(hexstr=key))))
+def meter_storage_convert_to_eth_storage(storage):
+    def _convert_hash(key): return "0x{}".format(
+        encode_hex(sha3(to_bytes(hexstr=key))))
     return {
         _convert_hash(v["key"]): v
         for _, v in storage.items()
@@ -145,7 +146,7 @@ class Clause(rlp.Serializable):
         super(Clause, self).__init__(To, Value, Data)
 
 
-class ThorTransaction(rlp.Serializable):
+class MeterTransaction(rlp.Serializable):
     fields = [
         ("ChainTag", big_endian_int),
         ("BlockRef", big_endian_int),
@@ -168,7 +169,8 @@ class ThorTransaction(rlp.Serializable):
                 decode_hex(eth_tx.get("data", "")),
             )
         ]
-        super(ThorTransaction, self).__init__(chain_tag, blk_ref, (2 ** 32) - 1, clauses, 0, eth_tx.get("gas", 3000000), b"", 0, [], b"")
+        super(MeterTransaction, self).__init__(chain_tag, blk_ref, (2 **
+                                                                    32) - 1, clauses, 0, eth_tx.get("gas", 3000000), b"", 0, [], b"")
 
     def sign(self, key):
         '''Sign this transaction with a private key.
@@ -176,7 +178,7 @@ class ThorTransaction(rlp.Serializable):
         A potentially already existing signature would be overridden.
         '''
         h = blake2b(digest_size=32)
-        h.update(rlp.encode(self, ThorTransaction.exclude(["Signature"])))
+        h.update(rlp.encode(self, MeterTransaction.exclude(["Signature"])))
         rawhash = h.digest()
 
         if key in (0, "", b"\x00" * 32, "0" * 64):

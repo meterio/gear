@@ -38,7 +38,7 @@ class Restful(object):
             response = await method(self._endpoint, params=params, data=data, **kwargs)
             return await response.json()
         except aiohttp.ClientConnectionError as e:
-            print("Unable to connect to Thor-Restful server:")
+            print("Unable to connect to Meter-Restful server:")
             error = e
         except Exception as e:
             try:
@@ -46,5 +46,5 @@ class Restful(object):
                 error = Exception(text.strip('\n'))
             except:
                 error = e
-        print("Thor-Restful server Err:")
+        print("Meter-Restful server Err:")
         raise error

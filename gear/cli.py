@@ -1,11 +1,11 @@
 from jsonrpcserver import async_dispatch
 from aiohttp import web
 from .rpc import make_version
-from .thor.account import (
+from .meter.account import (
     solo,
     keystore as _keystore,
 )
-from .thor.client import thor
+from .meter.client import meter
 import requests
 import click
 from datetime import datetime
@@ -70,17 +70,17 @@ def run_server(host, port, endpoint, keystore, passcode, log, debug):
         response = requests.options(endpoint)
         response.raise_for_status()
     except requests.exceptions.ConnectionError:
-        print("Unable to connect to Thor-Restful server.")
+        print("Unable to connect to Meter-Restful server.")
         return
 
     print(make_version())
     print("Listening on %s:%s" % (host, port))
 
-    thor.set_endpoint(endpoint)
+    meter.set_endpoint(endpoint)
     if keystore == "":
-        thor.set_accounts(solo())
+        meter.set_accounts(solo())
     else:
-        thor.set_accounts(_keystore(keystore, passcode))
+        meter.set_accounts(_keystore(keystore, passcode))
 
     app = web.Application()
     app.router.add_post("/", lambda r: handle(r, log, debug))
