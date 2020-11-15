@@ -157,7 +157,7 @@ async def eth_getStorageAt(address, position, block_identifier="best"):
 @method
 @async_serialize
 async def eth_chainId():
-    return "0xee"
+    return "0x52"
 
 
 @method
