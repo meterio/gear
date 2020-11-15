@@ -85,6 +85,8 @@ def run_server(host, port, endpoint, keystore, passcode, log, debug):
     app = web.Application()
     app.router.add_post("/", lambda r: handle(r, log, debug))
     app.router.add_options("/", lambda r: web.Response(headers=res_headers))
+    app.router.add_get(
+        "/health", lambda r: web.Response(headers=res_headers, body="OK", content_type="text/plain"))
     web.run_app(app, host=host, port=port)
 
 
