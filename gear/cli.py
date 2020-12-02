@@ -1,4 +1,5 @@
 from jsonrpcserver import async_dispatch
+import json
 from aiohttp import web
 from .rpc import make_version
 from .meter.account import (
@@ -12,7 +13,7 @@ from datetime import datetime
 
 
 res_headers = {
-    "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "Access-Control-Allow-Headers": "*",
     "Access-Control-Allow-Origin": "*",
     "Connection": "keep-alive",
 }
@@ -20,13 +21,21 @@ res_headers = {
 
 async def handle(request, logging=False, debug=False):
     jreq = await request.json()
-    method = jreq['method']
-    request = await request.text()
-    response = await async_dispatch(request, basic_logging=logging, debug=debug)
-    if response.wanted:
+    if not isinstance(jreq, list):
+        jreq = [jreq]
+    responses = []
+    for r in jreq:
+        method = r['method']
+        # request = await request.text()
+        response = await async_dispatch(json.dumps(r), basic_logging=logging, debug=debug)
+        if response.wanted:
+            print(json.dumps(response.deserialized()))
+            responses.append(json.loads(json.dumps(response.deserialized())))
+
+    if len(responses):
         print("-"*40+"\nRPC Call:", method, "\nTime: ", datetime.now().timestamp(), "\nRequest:", request, "\nResponse:",
-              str(response.deserialized())+"\n"+"-"*40)
-        return web.json_response(response.deserialized(), headers=res_headers, status=response.http_status)
+              json.dumps(responses)+"\n"+"-"*40)
+        return web.json_response(responses, headers=res_headers, status=response.http_status)
     else:
         return web.Response(headers=res_headers, content_type="text/plain")
 
