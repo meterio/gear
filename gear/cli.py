@@ -83,6 +83,7 @@ def run_server(host, port, endpoint, keystore, passcode, log, debug):
         meter.set_accounts(_keystore(keystore, passcode))
 
     app = web.Application()
+    app.router.add_get("/", lambda r: web.Response(headers=res_headers))
     app.router.add_post("/", lambda r: handle(r, log, debug))
     app.router.add_options("/", lambda r: web.Response(headers=res_headers))
     app.router.add_get(
