@@ -21,8 +21,13 @@ res_headers = {
 
 async def handle(request, logging=False, debug=False):
     jreq = await request.json()
+    reqStr = json.dumps(jreq)
+    arrayNeeded = True
     if not isinstance(jreq, list):
         jreq = [jreq]
+        arrayNeeded = False
+
+    print('*'*40+"\nRaw Req:", reqStr, "\n"+"*"*40)
     responses = []
     for r in jreq:
         method = r['method']
@@ -33,9 +38,12 @@ async def handle(request, logging=False, debug=False):
             responses.append(json.loads(json.dumps(response.deserialized())))
 
     if len(responses):
-        print("-"*40+"\nRPC Call:", method, "\nTime: ", datetime.now().timestamp(), "\nRequest:", request, "\nResponse:",
-              json.dumps(responses)+"\n"+"-"*40)
-        return web.json_response(responses, headers=res_headers, status=response.http_status)
+        print("-"*40+"\nRPC Call:", method, "\nTime: ", datetime.now().timestamp(),
+              "\nRequest:", reqStr, "\nResponse:", json.dumps(responses)+"\n"+"-"*40)
+        if arrayNeeded:
+            return web.json_response(responses, headers=res_headers, status=response.http_status)
+        else:
+            return web.json_response(responses[0], headers=res_headers, status=response.http_status)
     else:
         return web.Response(headers=res_headers, content_type="text/plain")
 

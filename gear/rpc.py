@@ -162,6 +162,12 @@ async def eth_chainId():
 
 @method
 @async_serialize
+async def eth_gasPrice():
+    return hex(int(500e9))  # default gas price set to 500 GWei
+
+
+@method
+@async_serialize
 async def eth_getTransactionCount(address, block_identifier="best"):
     '''
     ethereum 用来处理 nonce, Meter 不需要
