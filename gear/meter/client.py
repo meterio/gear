@@ -29,6 +29,12 @@ class MeterClient(object, metaclass=Singleton):
     def __init__(self):
         self.filter = {}
 
+    def set_chainid(self, chainid):
+        self.chainid = chainid
+
+    def get_chainid(self):
+        return self.chainid
+
     def set_endpoint(self, endpoint):
         restful = Restful(endpoint)
         self.eth_transactions = restful.transactions.eth

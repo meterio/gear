@@ -80,8 +80,12 @@ async def handle(request, logging=False, debug=False):
     default=False,
     type=bool,
 )
-def run_server(host, port, endpoint, keystore, passcode, log, debug):
-    print('run server')
+@click.option(
+    "--chainid",
+    default="0x52"
+)
+def run_server(host, port, endpoint, keystore, passcode, log, debug, chainid):
+    print('run server', "host", host, "chainid", chainid)
     try:
         print(endpoint)
         response = requests.options(endpoint)
@@ -94,6 +98,7 @@ def run_server(host, port, endpoint, keystore, passcode, log, debug):
     print("Listening on %s:%s" % (host, port))
 
     meter.set_endpoint(endpoint)
+    meter.set_chainid(chainid)
     if keystore == "":
         meter.set_accounts(solo())
     else:

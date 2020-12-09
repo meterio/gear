@@ -102,7 +102,7 @@ async def debug_storageRangeAt(blk_hash, tx_index, contract_addr, key_start, max
 #
 @method
 async def net_version():
-    return 82
+    return int(meter.get_chainid(), 16)
 
 
 @method
@@ -157,7 +157,7 @@ async def eth_getStorageAt(address, position, block_identifier="best"):
 @method
 @async_serialize
 async def eth_chainId():
-    return "0x52"
+    return meter.get_chainid()
 
 
 @method
