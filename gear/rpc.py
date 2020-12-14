@@ -199,7 +199,8 @@ async def eth_blockNumber():
 @async_serialize
 async def eth_estimateGas(transaction):
     formatted_transaction = input_transaction_formatter(transaction)
-    return encode_number(await meter.estimate_gas(formatted_transaction))
+    result = await meter.estimate_gas(formatted_transaction)
+    return encode_number(result)
 
 
 @method
