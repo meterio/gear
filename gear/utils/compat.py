@@ -27,7 +27,7 @@ ETH_BLOCK_KWARGS_MAP = {
     "id": "hash",
     "parentID": "parentHash",
     "signer": "miner",
-    "totalScore": "totalDifficulty",
+#    "totalScore": "totalDifficulty",
     "txsRoot": "transactionsRoot",
 }
 
@@ -38,11 +38,22 @@ BLOCK_FORMATTERS = {
     "timestamp": encode_number,
     "gasLimit": encode_number,
     "gasUsed": encode_number,
-    "totalScore": encode_number,
+    "totalScore": encode_number
 }
 
-
 def meter_block_convert_to_eth_block(block):
+# sha3Uncles, logsBloom, difficaulty, extraData are the required fields. nonce is optional
+    n = block["nonce"]
+    if n == 0:
+        block["nonce"] = '0x0000000000000000'
+    else:
+        block["nonce"] = encode_number(n)
+
+    block['sha3Uncles'] = '0x0000000000000000000000000000000000000000000000000000000000000000'
+    block['logsBloom'] = '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+    block['difficulty'] = '0x0'
+    block['extraData'] = '0x'
+
     return {
         ETH_BLOCK_KWARGS_MAP.get(k, k): BLOCK_FORMATTERS.get(k, noop)(v)
         for k, v in block.items()
