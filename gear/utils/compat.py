@@ -101,12 +101,13 @@ def meter_log_convert_to_eth_log(address, logs):
     if logs:
         return [
             {
+                "address": log["address"],
                 "logIndex": encode_number(index),
                 "blockNumber": encode_number(log["meta"]["blockNumber"]),
                 "blockHash": log["meta"]["blockID"],
                 "transactionHash": log["meta"]["txID"],
                 "transactionIndex": encode_number(0),
-                "address": address,
+                #"address": address,
                 "data": log["data"],
                 "topics": log["topics"],
             }

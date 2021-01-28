@@ -4,6 +4,8 @@ import logging
 import sys
 import json
 import traceback
+import random
+import time
 from .meter.client import meter
 from .utils.compat import noop
 from .utils.types import (
@@ -172,7 +174,11 @@ async def eth_getTransactionCount(address, block_identifier="best"):
     '''
     ethereum 用来处理 nonce, Meter 不需要
     '''
-    return encode_number(0)
+    #return encode_number(0)
+    random.seed(time.time())
+    nonce = random.randint(1, 0xffffffff)
+    print("nonce = " + str(nonce))
+    return encode_number(nonce)
 
 
 @method
@@ -199,7 +205,9 @@ async def eth_blockNumber():
 @async_serialize
 async def eth_estimateGas(transaction):
     formatted_transaction = input_transaction_formatter(transaction)
-    return encode_number(await meter.estimate_gas(formatted_transaction))
+    result = await meter.estimate_gas(formatted_transaction)
+    print("RESULT:", result)
+    return encode_number(result)
 
 
 @method
@@ -271,6 +279,7 @@ async def eth_getBlockByHash(block_hash, full_tx=False):
 @method
 @async_serialize
 async def eth_getBlockByNumber(block_number, full_tx=False):
+    print("block_number", block_number, full_tx)
     return await get_block(block_number, full_tx)
 
 

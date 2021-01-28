@@ -1,5 +1,6 @@
 import rlp
 import uuid
+import random
 from gear.utils.singleton import Singleton
 from gear.utils.types import (
     encode_number,
@@ -20,7 +21,6 @@ from .request import (
     get,
     post,
 )
-
 
 def _attribute(obj, key): return None if obj is None else obj[key]
 
@@ -97,7 +97,7 @@ class MeterClient(object, metaclass=Singleton):
             "caller": transaction.get("from", None),
         }
         result = await self.accounts(transaction.get(
-            "to", None)).make_request(post, data=data)
+            "to", "0x")).make_request(post, data=data)
         if result is None or result["reverted"]:
             raise ValueError("Gas estimation failed.")
         return int(result["gasUsed"] * 1.2) + intrinsic_gas(transaction)
@@ -128,6 +128,7 @@ class MeterClient(object, metaclass=Singleton):
             "raw": raw
         }
         result = await self.eth_transactions.make_request(post, data=data)
+
         return _attribute(result, "id")
 
     async def get_transaction_by_hash(self, tx_hash):
