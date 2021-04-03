@@ -64,6 +64,8 @@ def meter_block_convert_to_eth_block(block):
 # receipt
 #
 def meter_receipt_convert_to_eth_receipt(receipt):
+    logsBloom = '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+    print(receipt)
     return {
         "status": encode_number(0 if receipt["reverted"] else 1),
         "transactionHash": receipt["meta"]["txID"],
@@ -73,7 +75,9 @@ def meter_receipt_convert_to_eth_receipt(receipt):
         "cumulativeGasUsed": encode_number(receipt["gasUsed"]),
         "gasUsed": encode_number(receipt["gasUsed"]),
         "contractAddress": None if receipt["reverted"] else receipt["outputs"][0]["contractAddress"],
-        "logs": None if receipt["reverted"] else [
+        "logsBloom": logsBloom,
+        #"logs": None if receipt["reverted"] else [
+        "logs": [] if receipt["reverted"] else [
             meter_receipt_log_convert_to_eth_log(receipt, index, log)
             for index, log in enumerate(receipt["outputs"][0]["events"])
         ],
