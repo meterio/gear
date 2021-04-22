@@ -104,7 +104,7 @@ async def debug_storageRangeAt(blk_hash, tx_index, contract_addr, key_start, max
 #
 @method
 async def net_version():
-    return int(meter.get_chainid(), 16)
+    return str(int(meter.get_chainid(), 16))
 
 
 @method
