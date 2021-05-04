@@ -27,7 +27,7 @@ ETH_BLOCK_KWARGS_MAP = {
     "id": "hash",
     "parentID": "parentHash",
     "signer": "miner",
-#    "totalScore": "totalDifficulty",
+    #    "totalScore": "totalDifficulty",
     "txsRoot": "transactionsRoot",
 }
 
@@ -41,8 +41,9 @@ BLOCK_FORMATTERS = {
     "totalScore": encode_number
 }
 
+
 def meter_block_convert_to_eth_block(block):
-# sha3Uncles, logsBloom, difficaulty, extraData are the required fields. nonce is optional
+    # sha3Uncles, logsBloom, difficaulty, extraData are the required fields. nonce is optional
     n = block["nonce"]
     if n == 0:
         block["nonce"] = '0x0000000000000000'
@@ -53,7 +54,7 @@ def meter_block_convert_to_eth_block(block):
     block['logsBloom'] = '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
     block['difficulty'] = '0x0'
     block['extraData'] = '0x'
-
+    print('got block: ', block)
     return {
         ETH_BLOCK_KWARGS_MAP.get(k, k): BLOCK_FORMATTERS.get(k, noop)(v)
         for k, v in block.items()
@@ -67,6 +68,7 @@ def meter_receipt_convert_to_eth_receipt(receipt):
     logsBloom = '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
     print(receipt)
     return {
+        "from": receipt["meta"]["txOrigin"],
         "status": encode_number(0 if receipt["reverted"] else 1),
         "transactionHash": receipt["meta"]["txID"],
         "transactionIndex": encode_number(0),
@@ -76,7 +78,7 @@ def meter_receipt_convert_to_eth_receipt(receipt):
         "gasUsed": encode_number(receipt["gasUsed"]),
         "contractAddress": None if receipt["reverted"] else receipt["outputs"][0]["contractAddress"],
         "logsBloom": logsBloom,
-        #"logs": None if receipt["reverted"] else [
+        # "logs": None if receipt["reverted"] else [
         "logs": [] if receipt["reverted"] else [
             meter_receipt_log_convert_to_eth_log(receipt, index, log)
             for index, log in enumerate(receipt["outputs"][0]["events"])
@@ -111,7 +113,7 @@ def meter_log_convert_to_eth_log(address, logs):
                 "blockHash": log["meta"]["blockID"],
                 "transactionHash": log["meta"]["txID"],
                 "transactionIndex": encode_number(0),
-                #"address": address,
+                # "address": address,
                 "data": log["data"],
                 "topics": log["topics"],
             }

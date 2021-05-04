@@ -174,7 +174,7 @@ async def eth_getTransactionCount(address, block_identifier="best"):
     '''
     ethereum 用来处理 nonce, Meter 不需要
     '''
-    #return encode_number(0)
+    # return encode_number(0)
     random.seed(time.time())
     nonce = random.randint(1, 0xffffffff)
     print("nonce = " + str(nonce))
@@ -206,7 +206,6 @@ async def eth_blockNumber():
 async def eth_estimateGas(transaction):
     formatted_transaction = input_transaction_formatter(transaction)
     result = await meter.estimate_gas(formatted_transaction)
-    print("RESULT:", result)
     return encode_number(result)
 
 

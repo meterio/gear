@@ -3,12 +3,16 @@ import aiohttp
 
 async def post(endpoint_uri, data, **kwargs):
     async with aiohttp.ClientSession() as session:
-        return await session.post(endpoint_uri, json=data, **kwargs)
+        async with session.post(endpoint_uri, json=data, **kwargs) as response:
+            await response.json()
+            return response
 
 
 async def get(endpoint_uri, params, **kwargs):
     async with aiohttp.ClientSession() as session:
-        return await session.get(endpoint_uri, params=params, **kwargs)
+        async with session.get(endpoint_uri, params=params, **kwargs) as response:
+            await response.json()
+            return response
 
 
 class Restful(object):
@@ -33,6 +37,7 @@ class Restful(object):
         }
         kwargs.setdefault('headers', headers)
         kwargs.setdefault('timeout', 10)
+        kwargs.setdefault('chunked', True)
         error = None
         try:
             response = await method(self._endpoint, params=params, data=data, **kwargs)

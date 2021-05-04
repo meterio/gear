@@ -22,6 +22,7 @@ from .request import (
     post,
 )
 
+
 def _attribute(obj, key): return None if obj is None else obj[key]
 
 
