@@ -46,7 +46,7 @@ def meter_block_convert_to_eth_block(block):
     # sha3Uncles, logsBloom, difficaulty, extraData are the required fields. nonce is optional
     n = block["nonce"]
     if n == 0:
-        block["nonce"] = '0x0000000000000000'
+        block["nonce"] = '0x00000000000000000000000000000000'
     else:
         block["nonce"] = encode_number(n)
 

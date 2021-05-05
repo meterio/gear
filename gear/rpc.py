@@ -310,4 +310,8 @@ async def eth_getFilterChanges(filter_id):
 @method
 @async_serialize
 async def eth_getLogs(filter_obj):
+    to_blk = filter_obj.get('toBlock', None)
+    if (to_blk == 'latest'):
+        latest = await meter.get_block('best')
+        filter_obj['toBlock'] = latest['number']
     return await meter.get_logs(filter_obj.get("address", None), input_log_filter_formatter(filter_obj))
