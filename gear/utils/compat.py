@@ -46,14 +46,18 @@ def meter_block_convert_to_eth_block(block):
     # sha3Uncles, logsBloom, difficaulty, extraData are the required fields. nonce is optional
     n = block["nonce"]
     if n == 0:
-        block["nonce"] = '0x00000000000000000000000000000000'
+        block["nonce"] = '0x0000000000000000'
     else:
-        block["nonce"] = encode_number(n)
+        block["nonce"] = encode_number(n, 8)
 
     block['sha3Uncles'] = '0x0000000000000000000000000000000000000000000000000000000000000000'
     block['logsBloom'] = '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
     block['difficulty'] = '0x0'
     block['extraData'] = '0x'
+    if 'kblockData' in block:
+        del block['kblockData']
+    if 'powBlocks' in block:
+        del block['powBlocks']
     print('got block: ', block)
     return {
         ETH_BLOCK_KWARGS_MAP.get(k, k): BLOCK_FORMATTERS.get(k, noop)(v)
@@ -126,6 +130,15 @@ def meter_log_convert_to_eth_log(address, logs):
 # transaction
 #
 def meter_tx_convert_to_eth_tx(tx):
+    print("TX: ", tx)
+    r = '0x'
+    s = '0x'
+    v = '0x'
+    if tx["ethTx"] and tx["ethTx"]["r"] and tx["ethTx"]["s"] and tx["ethTx"]["v"]:
+        r = tx["ethTx"]["r"]
+        s = tx["ethTx"]["s"]
+        v = tx["ethTx"]["v"]
+
     return {
         "hash": tx["id"],
         "nonce": tx["nonce"],
@@ -137,7 +150,10 @@ def meter_tx_convert_to_eth_tx(tx):
         "value": tx["clauses"][0]["value"],
         "gas": encode_number(tx["gas"]),
         "gasPrice": encode_number(1),
-        "input": tx["clauses"][0]["data"]
+        "input": tx["clauses"][0]["data"],
+        "r": r,
+        "s": s,
+        "v": v,
     }
 
 
