@@ -5,6 +5,7 @@ from setuptools import (
     find_packages,
 )
 
+from gear import __version__
 
 here = path.abspath(path.dirname(__file__))
 with open(path.join(here, "README.md"), encoding="utf-8") as f:
@@ -13,7 +14,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
 
 setup(
     name="meter-gear",
-    version="1.0.27",
+    version=__version__,
     description="An adapter between meter-restful and eth-rpc.",
     long_description=long_description,
     long_description_content_type="text/markdown",
