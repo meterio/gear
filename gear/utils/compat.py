@@ -43,7 +43,6 @@ BLOCK_FORMATTERS = {
 
 
 def meter_block_convert_to_eth_block(block):
-    print('before the convert block: ', block)
     # sha3Uncles, logsBloom, difficaulty, extraData are the required fields. nonce is optional
     n = block["nonce"]
     if n == 0:
@@ -59,7 +58,6 @@ def meter_block_convert_to_eth_block(block):
         del block['kblockData']
     if 'powBlocks' in block:
         del block['powBlocks']
-    print('got block: ', block)
     return {
         ETH_BLOCK_KWARGS_MAP.get(k, k): BLOCK_FORMATTERS.get(k, noop)(v)
         for k, v in block.items()
@@ -71,7 +69,6 @@ def meter_block_convert_to_eth_block(block):
 #
 def meter_receipt_convert_to_eth_receipt(receipt):
     logsBloom = '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
-    print(receipt)
     return {
         "from": receipt["meta"]["txOrigin"],
         "status": encode_number(0 if receipt["reverted"] else 1),
@@ -132,7 +129,6 @@ def meter_log_convert_to_eth_log(address, logs):
 # transaction
 #
 def meter_tx_convert_to_eth_tx(tx):
-    print("TX: ", tx)
     r = '0x'
     s = '0x'
     v = '0x'

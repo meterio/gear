@@ -4,7 +4,7 @@ scrypt
 werkzeug
 requests
 aiohttp
-jsonrpcserver
+jsonrpcserver==4.2.0
 lru-dict
 eth-keys
 eth_utils

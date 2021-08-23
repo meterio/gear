@@ -27,19 +27,20 @@ async def handle(request, logging=False, debug=False):
         jreq = [jreq]
         arrayNeeded = False
 
-    print('*'*40+"\nRaw Req:", reqStr, "\n"+"*"*40)
     responses = []
+    print('\n'+'-'*40)
+    print("call: [%s] ts:%.0f"% (jreq[0]['method'] if jreq and len(jreq)>=1 else 'unknown', datetime.now().timestamp()),
+              "\nRequest:", reqStr)
     for r in jreq:
         method = r['method']
         # request = await request.text()
         response = await async_dispatch(json.dumps(r), basic_logging=logging, debug=debug)
         if response.wanted:
-            print(json.dumps(response.deserialized()))
+            print("Response #%s:"%(str(r['id'])), json.dumps(response.deserialized()))
             responses.append(json.loads(json.dumps(response.deserialized())))
 
+    print("-"*40)
     if len(responses):
-        print("-"*40+"\nRPC Call:", method, "\nTime: ", datetime.now().timestamp(),
-              "\nRequest:", reqStr, "\nResponse:", json.dumps(responses)+"\n"+"-"*40)
         if arrayNeeded:
             return web.json_response(responses, headers=res_headers, status=response.http_status)
         else:

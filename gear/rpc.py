@@ -177,15 +177,12 @@ async def eth_getTransactionCount(address, block_identifier="best"):
     # return encode_number(0)
     random.seed(time.time())
     nonce = random.randint(1, 0xffffffff)
-    print("nonce = " + str(nonce))
     return encode_number(nonce)
 
 
 @method
 async def eth_accounts():
-    print('get accounts')
     accounts = meter.get_accounts()
-    print(accounts)
     return accounts
 
 
@@ -205,6 +202,7 @@ async def eth_blockNumber():
 @async_serialize
 async def eth_estimateGas(transaction):
     formatted_transaction = input_transaction_formatter(transaction)
+    print("FORMATED TX:", formatted_transaction)
     result = await meter.estimate_gas(formatted_transaction)
     return encode_number(result)
 
@@ -222,7 +220,6 @@ async def eth_sendTransaction(transaction):
     '''
     发送未签名的交易
     '''
-    print('tx: ', transaction)
     formatted_transaction = input_transaction_formatter(transaction)
     return await meter.send_transaction(formatted_transaction)
 
@@ -233,7 +230,6 @@ async def eth_sign(transaction):
     '''
     发送未签名的交易
     '''
-    print('eth_sign tx: ', transaction)
     return await {}
 
 
@@ -243,7 +239,6 @@ async def eth_sendRawTransaction(raw):
     '''
     发送已签名的交易
     '''
-    print('raw:', raw)
     return await meter.send_raw_transaction(raw)
 
 
@@ -278,7 +273,6 @@ async def eth_getBlockByHash(block_hash, full_tx=False):
 @method
 @async_serialize
 async def eth_getBlockByNumber(block_number, full_tx=False):
-    print("block_number", block_number, full_tx)
     return await get_block(block_number, full_tx)
 
 
