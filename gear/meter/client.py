@@ -187,6 +187,11 @@ class MeterClient(object, metaclass=Singleton):
         result = meter_log_convert_to_eth_log(address, logs)
         return result
 
+    async def get_trace_filter(self, filter_obj):
+        print("filter_obj", filter_obj)
+        result = await self.debug.trace_filter.make_request(post, data=filter_obj)
+        print("trace_filter result", result)
+        return result
 
 class BlockFilter(object):
 
