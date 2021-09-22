@@ -319,3 +319,15 @@ async def trace_filter(filter_obj):
         filter_obj['toBlock'] = latest['number']
     return await meter.get_trace_filter(filter_obj)
 
+@method
+@async_serialize
+async def trace_transaction(filter_obj):
+    return await meter.get_trace_transaction(filter_obj)
+
+@method
+@async_serialize
+async def trace_block(filter_obj):
+    blk = int(filter_obj, 16)
+    print('hex:', hex(blk))
+    return await meter.get_trace_filter({"fromBlock":hex(blk), "toBlock":hex(blk+1)})
+

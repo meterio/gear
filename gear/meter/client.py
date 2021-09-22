@@ -193,6 +193,12 @@ class MeterClient(object, metaclass=Singleton):
         print("trace_filter result", result)
         return result
 
+    async def get_trace_transaction(self, filter_obj):
+        print("filter_obj", filter_obj, type(filter_obj))
+        result = await self.debug.trace_transaction.make_request(post, data=[filter_obj])
+        print("trace_transaction result", result)
+        return result
+
 class BlockFilter(object):
 
     def __init__(self, current_block_num, client):
