@@ -189,7 +189,7 @@ class MeterClient(object, metaclass=Singleton):
 
     async def get_trace_filter(self, filter_obj):
         print("filter_obj", filter_obj)
-        result = await self.debug.trace_filter.make_request(post, data=filter_obj)
+        result = await self.debug.openeth_trace_filter.make_request(post, data=filter_obj)
         print("trace_filter result", result)
         return result
 
