@@ -180,6 +180,16 @@ class MeterClient(object, metaclass=Singleton):
         return await func() if func else []
 
     async def get_logs(self, address, query):
+        result = []
+        step = 100
+        if isinstance(address, list) and len(address) > step:
+            while len(address)>0:
+                result.extend(await self.get_logs_bounded(address[:step],query))
+                address = address[step:]
+                print('len:',len(address))
+        return result
+
+    async def get_logs_bounded(self, address, query):
         params = {
             "address": address
         }
@@ -187,18 +197,24 @@ class MeterClient(object, metaclass=Singleton):
         result = meter_log_convert_to_eth_log(address, logs)
         return result
 
+
     async def get_trace_filter(self, filter_obj):
         print("filter_obj", filter_obj)
-        result = await self.debug.trace_filter.make_request(post, data=filter_obj)
+        result = await self.debug.openeth_trace_filter.make_request(post, data=filter_obj)
         print("trace_filter result", result)
         return result
 
     async def get_trace_transaction(self, filter_obj):
         print("filter_obj", filter_obj, type(filter_obj))
-        result = await self.debug.trace_transaction.make_request(post, data=[filter_obj])
+        result = await self.debug.openeth_trace_transaction.make_request(post, data=[filter_obj])
         print("trace_transaction result", result)
         return result
 
+    async def get_trace_block(self, filter_obj):
+        print("filter_obj", filter_obj, type(filter_obj))
+        result = await self.debug.openeth_trace_block.make_request(post, data=[filter_obj])
+        print("trace_block result", result)
+        return result
 class BlockFilter(object):
 
     def __init__(self, current_block_num, client):
