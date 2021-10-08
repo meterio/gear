@@ -1,5 +1,5 @@
 import aiohttp
-
+import asyncio
 
 async def post(endpoint_uri, data, **kwargs):
     async with aiohttp.ClientSession() as session:
@@ -47,6 +47,7 @@ class Restful(object):
         except aiohttp.ClientConnectionError as e:
             print("Unable to connect to Meter-Restful server:")
             error = e
+            raise e
         except Exception as e:
             text = ''
             try:
@@ -54,5 +55,5 @@ class Restful(object):
                 error = Exception(text.strip('\n'))
             except:
                 error = e
-        print("Meter-Restful server Err:",e, ', response text: ', text)
-        raise error
+            print("Meter-Restful server Err:",e, ', response text: ', text)
+            raise error

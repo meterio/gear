@@ -183,17 +183,24 @@ class MeterClient(object, metaclass=Singleton):
         result = []
         step = 100
         if isinstance(address, list) and len(address) > step:
+            print('get logs with loop')
             while len(address)>0:
                 result.extend(await self.get_logs_bounded(address[:step],query))
                 address = address[step:]
                 print('len:',len(address))
+        else:
+            print('get logs with direct call')
+            result = await self.get_logs_bounded(address, query)
         return result
 
     async def get_logs_bounded(self, address, query):
-        params = {
-            "address": address
-        }
-        logs = await self.events.make_request(post, data=query, params=params)
+        if address:
+            if isinstance(address, list):
+                query['address'] = address
+            elif isinstance(address, str):
+                query['address'] = [address]
+        print("POST to /logs/events: ", query)
+        logs = await self.events.make_request(post, data=query)
         result = meter_log_convert_to_eth_log(address, logs)
         return result
 
