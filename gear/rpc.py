@@ -321,20 +321,8 @@ async def eth_getLogs(filter_obj):
 
 
 
-WSURL_EVENTS = 'ws://s03.meter.io:8669/subscriptions/event'
-WSURL_NHEADS = 'ws://s03.meter.io:8669/subscriptions/beat'
+WSURL_NHEADS = 'ws://13.214.34.49:8669/subscriptions/beat'
 connections = {}
-
-
-# 1st call for newHeads
-  #subcribeId -> send as response
-  #connect to the websocket ws://s03.meter.io:8669/subscriptions/beat
-  #response
-
-# 2nd call for newHeads
-  #subcribeId -> send as response
-  #connect to the websocket ws://s03.meter.io:8669/subscriptions/beat
-  #response
 
 
 async def convertToHash(parameter, url):
@@ -358,12 +346,9 @@ async def eth_subscribe(parameter): #logs , {address:, topics}
         
         if not hex_dig in connections:
            connections[hex_dig] = {'url':WSURL_NHEADS, 'calls':1, 'state':1}
-           #return hex_dig
         return await convertToHash(parameter,WSURL_NHEADS)
             
-        #check if the newHeads subscription exists or not
-        #if it's the first call, convert to hash
-        #if it's the second call, just reply with the subscription id and return
+       
 
 
 @method
@@ -371,38 +356,12 @@ def eth_unsubscribe(parameter):
     if parameter in connections:
         connections[parameter]['state'] = 0
         
-   
-
-@method
-def eth_cancelsubscribe(parameter):
-    if parameter in connections:
-        connections[parameter]['state'] = 0
-    #remove that event from the map
-    #tear down the connection
-
-
-# {
-#     "parentHash",
-#     "sha3Uncles",
-#     "miner",
-#     "stateRoot",
-#     "receiptsRoot",
-#     "transactionsRoot",
-#     "logsBloom",
-#     "difficulty",
-#     "number",
-#     "gasUsed",
-#     "gasLimit",
-#     "timestamp",
-#     "extraData"
-
-# }
 
 
 async def handle_socket(key):
 
         try:
-            async with websockets.connect('ws://127.0.0.1:8669/subscriptions/beat') as ws:
+            async with websockets.connect('ws://13.214.34.49:8669/subscriptions/beat') as ws:
 
               
                 try:
@@ -422,9 +381,3 @@ async def handle_socket(key):
         except:
             return {'error code':404, 'message':'Failed to connect to url'}
 
-# async def handler():
-#     if len(connections):
-#         await asyncio.wait([handle_socket(key) for key in connections])
-
-
-# asyncio.get_event_loop().run_until_complete(handler())

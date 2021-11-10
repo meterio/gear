@@ -224,15 +224,15 @@ async def websocket_handler(request):
            
 
 
-def run_server(host='0.0.0.0', port='8545', endpoint='http://127.0.0.1:8669', keystore='', passcode='', log=True, debug=True, chainid='0x53'):
+def run_server(host='0.0.0.0', port='8545', endpoint='http://13.214.34.49:8669', keystore='', passcode='', log=True, debug=True, chainid='0x53'):
     print('run server', "host", host, "chainid", chainid)
-    # try:
-    #     print(endpoint)
-    #     response = requests.options(endpoint)
-    #     response.raise_for_status()
-    # except requests.exceptions.ConnectionError:
-    #     print("Unable to connect to Meter-Restful server.")
-    #     return
+    try:
+        print(endpoint) 
+        response = requests.options(endpoint)
+        response.raise_for_status()
+    except requests.exceptions.ConnectionError:
+        print("Unable to connect to Meter-Restful server.")
+        return
 
     print(make_version())
     print("Listening on %s:%s" % (host, port))
@@ -261,7 +261,7 @@ def run_server(host='0.0.0.0', port='8545', endpoint='http://127.0.0.1:8669', ke
 
 
 if __name__ == '__main__':
-    run_server('0.0.0.0', '8545', 'http://127.0.0.1:8669', '', '', log=True, debug=True, chainid='0x53')
+    run_server('0.0.0.0', '8545', 'http://13.214.34.49:8669', '', '', log=True, debug=True, chainid='0x53')
     
     
     
