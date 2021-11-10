@@ -153,6 +153,7 @@ async def websocket_handler(request):
             and headers.get("upgrade", "").lower() == "websocket"
             
         ):
+        
             ws = web.WebSocketResponse()
             try:
                  await ws.prepare(request)
