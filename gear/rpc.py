@@ -325,28 +325,24 @@ WSURL_NHEADS = 'ws://13.214.34.49:8669/subscriptions/beat'
 connections = {}
 
 
-async def convertToHash(parameter, url):
-
+async def convertToHash(parameter):
     hash_object = hashlib.sha224(parameter.encode())
     hex_dig = hash_object.hexdigest()
     if not hex_dig in connections:
-        connections[hex_dig] = {'url':url, 'calls':1, 'state':1}
-    else:
-        connections[hex_dig]['calls'] = connections[hex_dig]['calls'] + 1
-    #return await handle_socket(hex_dig, url, calls)
+        connections[hex_dig] = {'state':1}
     return await handle_socket(hex_dig)
     
 
 @method
 @async_serialize
-async def eth_subscribe(parameter): #logs , {address:, topics} 
+async def eth_subscribe(parameter): 
     if parameter == "newHeads":
         hash_object = hashlib.sha224(parameter.encode())
         hex_dig = hash_object.hexdigest()
         
         if not hex_dig in connections:
-           connections[hex_dig] = {'url':WSURL_NHEADS, 'calls':1, 'state':1}
-        return await convertToHash(parameter,WSURL_NHEADS)
+           connections[hex_dig] = { 'state':1}
+        return await convertToHash(parameter)
             
        
 
@@ -359,11 +355,8 @@ def eth_unsubscribe(parameter):
 
 
 async def handle_socket(key):
-
         try:
-            async with websockets.connect('ws://13.214.34.49:8669/subscriptions/beat') as ws:
-
-              
+            async with websockets.connect(WSURL_NHEADS) as ws:
                 try:
                     
                     if connections[key]['state'] == 1:

@@ -97,14 +97,7 @@ async def handle(request, logging=False, debug=False):
 
 
 
-async def run_web_socket_server(websocket, path):
-    print("A client just connected")
-    try:
-        async for message in websocket:
-            print("Received message from client: " + message)
-            await websocket.send("Response: " + message)
-    except websockets.exceptions.ConnectionClosed as e:
-        print("A client just disconnected")
+
 
 
 async def handleRequest(request, logging=False, debug=False):
@@ -153,48 +146,35 @@ async def handleRequest(request, logging=False, debug=False):
 
 
 async def websocket_handler(request):
-     
         count = 1
-        
         headers = request.headers
         if (
             headers.get("connection", "").lower() == "upgrade"
             and headers.get("upgrade", "").lower() == "websocket"
             
         ):
-
             ws = web.WebSocketResponse()
             try:
-                 
                  await ws.prepare(request)
-                
                  async for msg in ws:
-                    
-                    if msg.type == aiohttp.WSMsgType.TEXT and msg.data != '\n' and msg.data.strip() :                       
-                        
+                    if msg.type == aiohttp.WSMsgType.TEXT and msg.data != '\n' and msg.data.strip():
                         if(json.loads(msg.data)['method'] == "eth_subscribe"):
+                            #send a subscription id to the client
                             await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":"0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827", "id":count}))
                             count = count + 1
-                            
+                            #begin subscription
                             while True:
-                                
                                 res = await handleRequest( json.loads(msg.data), False, False)
                                 copy_obj = copy.deepcopy(json.loads(res))
-                                
+                                # convert the subscription object into an appropriate response
                                 res_obj = {"jsonrpc": copy_obj["jsonrpc"] , "method":"eth_subscription", "params":{"result":copy_obj["result"], "subscription":"0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827"}}
                                 await ws.send_str(json.dumps(res_obj))
                         elif (json.loads(msg.data)['method'] == "eth_unsubscribe"):
-                           
+                            # return 'true' for eth_unsubscribe
                             await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":True, "id":count}))
                         else:
-                            
                             res = await handleRequest( json.loads(msg.data), False, False)
-                            
-                            
                             await ws.send_str(res)
-
-
-                            
                         
                     elif msg.type == aiohttp.WSMsgType.BINARY:
                         await ws.send_str(msg.data)
@@ -208,17 +188,11 @@ async def websocket_handler(request):
                     elif ws.closed:
                         await ws.close(code=ws.close_code, message=msg.extra)
                     else:
-                        
-                        
                         await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":"", "id":count}))
             
             except:
-                
                 await ws.close()
-               
         else:
-            
-
             return await handleRequest(request, False, False)
 
            
@@ -236,10 +210,7 @@ def run_server(host='0.0.0.0', port='8545', endpoint='http://13.214.34.49:8669',
 
     print(make_version())
     print("Listening on %s:%s" % (host, port))
-    # print("Server is listening on Port: " + str(8456))
-    # start_server = websockets.serve(run_web_socket_server, "0.0.0.0", 8456)
-    # asyncio.get_event_loop().run_until_complete(start_server)
-    # asyncio.get_event_loop().run_forever()
+    
 
     meter.set_endpoint(endpoint)
     meter.set_chainid(chainid)
