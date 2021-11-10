@@ -6,6 +6,11 @@ import json
 import traceback
 import random
 import time
+import websockets
+import asyncio
+import hashlib
+import copy
+
 from .meter.client import meter
 from .utils.compat import noop
 from .utils.types import (
@@ -15,6 +20,8 @@ from .utils.types import (
     normalize_number
 )
 from jsonrpcserver import method
+
+
 
 
 def async_serialize(func):
@@ -207,6 +214,8 @@ async def eth_estimateGas(transaction):
     return encode_number(result)
 
 
+
+
 @method
 @async_serialize
 async def eth_call(transaction, block_identifier="best"):
@@ -309,3 +318,113 @@ async def eth_getLogs(filter_obj):
         latest = await meter.get_block('best')
         filter_obj['toBlock'] = latest['number']
     return await meter.get_logs(filter_obj.get("address", None), input_log_filter_formatter(filter_obj))
+
+
+
+WSURL_EVENTS = 'ws://s03.meter.io:8669/subscriptions/event'
+WSURL_NHEADS = 'ws://s03.meter.io:8669/subscriptions/beat'
+connections = {}
+
+
+# 1st call for newHeads
+  #subcribeId -> send as response
+  #connect to the websocket ws://s03.meter.io:8669/subscriptions/beat
+  #response
+
+# 2nd call for newHeads
+  #subcribeId -> send as response
+  #connect to the websocket ws://s03.meter.io:8669/subscriptions/beat
+  #response
+
+
+async def convertToHash(parameter, url):
+
+    hash_object = hashlib.sha224(parameter.encode())
+    hex_dig = hash_object.hexdigest()
+    if not hex_dig in connections:
+        connections[hex_dig] = {'url':url, 'calls':1, 'state':1}
+    else:
+        connections[hex_dig]['calls'] = connections[hex_dig]['calls'] + 1
+    #return await handle_socket(hex_dig, url, calls)
+    return await handle_socket(hex_dig)
+    
+
+@method
+@async_serialize
+async def eth_subscribe(parameter): #logs , {address:, topics} 
+    if parameter == "newHeads":
+        hash_object = hashlib.sha224(parameter.encode())
+        hex_dig = hash_object.hexdigest()
+        
+        if not hex_dig in connections:
+           connections[hex_dig] = {'url':WSURL_NHEADS, 'calls':1, 'state':1}
+           #return hex_dig
+        return await convertToHash(parameter,WSURL_NHEADS)
+            
+        #check if the newHeads subscription exists or not
+        #if it's the first call, convert to hash
+        #if it's the second call, just reply with the subscription id and return
+
+
+@method
+def eth_unsubscribe(parameter):
+    if parameter in connections:
+        connections[parameter]['state'] = 0
+        
+   
+
+@method
+def eth_cancelsubscribe(parameter):
+    if parameter in connections:
+        connections[parameter]['state'] = 0
+    #remove that event from the map
+    #tear down the connection
+
+
+# {
+#     "parentHash",
+#     "sha3Uncles",
+#     "miner",
+#     "stateRoot",
+#     "receiptsRoot",
+#     "transactionsRoot",
+#     "logsBloom",
+#     "difficulty",
+#     "number",
+#     "gasUsed",
+#     "gasLimit",
+#     "timestamp",
+#     "extraData"
+
+# }
+
+
+async def handle_socket(key):
+
+        try:
+            async with websockets.connect('ws://127.0.0.1:8669/subscriptions/beat') as ws:
+
+              
+                try:
+                    
+                    if connections[key]['state'] == 1:
+                        
+                        msg = await ws.recv()
+                      
+                        return json.loads(msg)
+                        
+                    elif connections[key]['state'] == 0:
+                        del connections[key]
+                        return True
+                        
+                except:
+                    await ws.close()
+        except:
+            return {'error code':404, 'message':'Failed to connect to url'}
+
+# async def handler():
+#     if len(connections):
+#         await asyncio.wait([handle_socket(key) for key in connections])
+
+
+# asyncio.get_event_loop().run_until_complete(handler())
