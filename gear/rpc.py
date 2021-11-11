@@ -325,7 +325,7 @@ WSURL_NHEADS = 'ws://13.214.34.49:8669/subscriptions/beat'
 connections = {}
 
 
-async def convertToHash(parameter):
+async def subscribe_headers(parameter):
     hash_object = hashlib.sha224(parameter.encode())
     hex_dig = hash_object.hexdigest()
     if not hex_dig in connections:
@@ -337,13 +337,8 @@ async def convertToHash(parameter):
 @async_serialize
 async def eth_subscribe(parameter): 
     if parameter == "newHeads":
-        hash_object = hashlib.sha224(parameter.encode())
-        hex_dig = hash_object.hexdigest()
-        
-        if not hex_dig in connections:
-           connections[hex_dig] = { 'state':1}
-        return await convertToHash(parameter)
-            
+        return await subscribe_headers(parameter)
+       
        
 
 
