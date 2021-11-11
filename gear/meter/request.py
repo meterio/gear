@@ -70,6 +70,6 @@ class Restful(object):
         print("Meter-Restful server Err:")
         print("Error message from meter node:", error)
         #raise error
-        x ='{"id": "error from meter: ' + text.strip('\n') + '"}' 
+        x ='{"id": "' + text.strip('\n') + '"}' 
         #print(x)
         return json.loads(x)
