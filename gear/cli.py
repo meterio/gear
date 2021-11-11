@@ -1,5 +1,5 @@
 import copy
-import time
+
 from jsonrpcserver import async_dispatch
 import json
 import asyncio
@@ -100,7 +100,7 @@ async def handle(request, logging=False, debug=False):
 
 
 
-async def handleRequest(request, logging=False, debug=False):
+async def _handleRequest(request, logging=False, debug=False):
    
     jreq = request
     
@@ -165,7 +165,7 @@ async def websocket_handler(request):
                             count = count + 1
                             #begin subscription
                             while True:
-                                res = await handleRequest( json.loads(msg.data), False, False)
+                                res = await _handleRequest( json.loads(msg.data), False, False)
                                 copy_obj = copy.deepcopy(json.loads(res))
                                 # convert the subscription object into an appropriate response
                                 res_obj = {"jsonrpc": copy_obj["jsonrpc"] , "method":"eth_subscription", "params":{"result":copy_obj["result"], "subscription":"0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827"}}
@@ -174,7 +174,7 @@ async def websocket_handler(request):
                             # return 'true' for eth_unsubscribe
                             await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":True, "id":count}))
                         else:
-                            res = await handleRequest( json.loads(msg.data), False, False)
+                            res = await _handleRequest( json.loads(msg.data), False, False)
                             await ws.send_str(res)
                         
                     elif msg.type == aiohttp.WSMsgType.BINARY:
@@ -194,12 +194,12 @@ async def websocket_handler(request):
             except:
                 await ws.close()
         else:
-            return await handleRequest(request, False, False)
+            return await _handleRequest(request, False, False)
 
            
 
 
-def run_server(host='0.0.0.0', port='8545', endpoint='http://13.214.34.49:8669', keystore='', passcode='', log=True, debug=True, chainid='0x53'):
+def run_server(host='0.0.0.0', port='8545', endpoint='http://127.0.0.1:8669', keystore='', passcode='', log=True, debug=True, chainid='0x53'):
     print('run server', "host", host, "chainid", chainid)
     try:
         print(endpoint) 
@@ -233,9 +233,6 @@ def run_server(host='0.0.0.0', port='8545', endpoint='http://13.214.34.49:8669',
 
 
 if __name__ == '__main__':
-    run_server('0.0.0.0', '8545', 'http://13.214.34.49:8669', '', '', log=True, debug=True, chainid='0x53')
+    run_server('0.0.0.0', '8545', 'http://127.0.0.1:8669', '', '', log=True, debug=True, chainid='0x53')
     
     
-    
-    
-   
