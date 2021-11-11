@@ -308,6 +308,7 @@ async def eth_getLogs(filter_obj):
     if (to_blk == 'latest'):
         latest = await meter.get_block('best')
         filter_obj['toBlock'] = latest['number']
+    print(filter_obj)
     return await meter.get_logs(filter_obj.get("address", None), input_log_filter_formatter(filter_obj))
 
 @method
@@ -327,7 +328,5 @@ async def trace_transaction(filter_obj):
 @method
 @async_serialize
 async def trace_block(filter_obj):
-    blk = int(filter_obj, 16)
-    print('hex:', hex(blk))
-    return await meter.get_trace_filter({"fromBlock":hex(blk), "toBlock":hex(blk+1)})
+    return await meter.get_trace_block(filter_obj)
 
