@@ -1,19 +1,30 @@
 import aiohttp
+import json
 
 
 async def post(endpoint_uri, data, **kwargs):
     async with aiohttp.ClientSession() as session:
         async with session.post(endpoint_uri, json=data, **kwargs) as response:
-            await response.json()
-            return response
-
+            ctype = response.headers['Content-Type']
+            expect = "text/plain"
+            if expect in ctype:
+                await response.text()
+                return response
+            else:
+                await reponse.json()
+                return response
 
 async def get(endpoint_uri, params, **kwargs):
     async with aiohttp.ClientSession() as session:
         async with session.get(endpoint_uri, params=params, **kwargs) as response:
-            await response.json()
-            return response
-
+            ctype = response.headers['Content-Type']
+            expect = "text/plain"
+            if expect in ctype:
+                await response.text()
+                return response
+            else:
+                await response.json()
+                return response
 
 class Restful(object):
 
@@ -45,11 +56,17 @@ class Restful(object):
         except aiohttp.ClientConnectionError as e:
             print("Unable to connect to Meter-Restful server:")
             error = e
+            raise error
         except Exception as e:
             try:
                 text = await response.text()
                 error = Exception(text.strip('\n'))
             except:
                 error = e
+                raise error
         print("Meter-Restful server Err:")
-        raise error
+        print("Error message from meter node:", error)
+        #raise error
+        x ='{"id": "error from meter: ' + text.strip('\n') + '"}' 
+        #print(x)
+        return json.loads(x)
