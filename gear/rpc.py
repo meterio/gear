@@ -321,11 +321,11 @@ async def eth_getLogs(filter_obj):
 
 
 
-WSURL_NHEADS = 'ws://127.0.0.1:8669/subscriptions/beat'
+WSURL_NHEADS = 'ws://13.214.34.49:8669/subscriptions/beat'
 connections = {}
 
 
-async def convertToHash(parameter):
+async def subscribe_headers(parameter):
     hash_object = hashlib.sha224(parameter.encode())
     hex_dig = hash_object.hexdigest()
     if not hex_dig in connections:
@@ -336,16 +336,9 @@ async def convertToHash(parameter):
 @method
 @async_serialize
 async def eth_subscribe(parameter): 
-    print(parameter)
     if parameter == "newHeads":
-        print(parameter)
-        hash_object = hashlib.sha224(parameter.encode())
-        hex_dig = hash_object.hexdigest()
-        
-        if not hex_dig in connections:
-           connections[hex_dig] = { 'state':1}
-        return await convertToHash(parameter)
-            
+        return await subscribe_headers(parameter)
+       
        
 
 
@@ -358,13 +351,12 @@ def eth_unsubscribe(parameter):
 
 async def handle_socket(key):
         try:
-            async with websockets.connect("ws://127.0.0.1:8669/subscriptions/beat") as ws:
+            async with websockets.connect(WSURL_NHEADS) as ws:
                 try:
                     
                     if connections[key]['state'] == 1:
-                        print("sup here")
-                        msg = await ws.recv()
                         
+                        msg = await ws.recv()
                       
                         return json.loads(msg)
                         
@@ -376,4 +368,3 @@ async def handle_socket(key):
                     await ws.close()
         except:
             return {'error code':404, 'message':'Failed to connect to url'}
-
