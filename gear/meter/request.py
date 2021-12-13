@@ -1,6 +1,5 @@
 import aiohttp
 import json
-import asyncio
 
 async def post(endpoint_uri, data, **kwargs):
     async with aiohttp.ClientSession() as session:
