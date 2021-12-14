@@ -33,7 +33,7 @@ setup(
     install_requires=[x.strip() for x in open('requirements.txt')],
     entry_points={
         "console_scripts": [
-            "meter-gear=gear.cli:run_server",
+            "meter-gear=gear.cli:main",
         ],
     }
 )
