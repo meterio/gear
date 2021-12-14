@@ -1,4 +1,5 @@
 import copy
+from sys import getswitchinterval
 
 from jsonrpcserver import async_dispatch
 import json
@@ -6,6 +7,8 @@ import asyncio
 import websockets
 import aiohttp
 from aiohttp import web
+
+from gear.multi_app import MultiApp
 from .rpc import make_version
 from json.decoder import JSONDecodeError
 from .meter.account import (
@@ -24,43 +27,6 @@ res_headers = {
     "Connection": "keep-alive",
 }
 
-
-@click.command()
-@click.option(
-    "--host",
-    default="127.0.0.1",
-)
-@click.option(
-    "--port",
-    default=8545,
-    type=int,
-)
-@click.option(
-    "--endpoint",
-    default="http://127.0.0.1:8669",
-)
-@click.option(
-    "--keystore",
-    default="",
-)
-@click.option(
-    "--passcode",
-    default="",
-)
-@click.option(
-    "--log",
-    default=False,
-    type=bool,
-)
-@click.option(
-    "--debug",
-    default=False,
-    type=bool,
-)
-@click.option(
-    "--chainid",
-    default="0x53"
-)
 
 
 async def handle(request, logging=False, debug=False):
@@ -140,11 +106,6 @@ async def handleRequest(request, logging=False, debug=False):
         return web.Response(headers=res_headers, content_type="text/plain").text
 
 
-
-
-
-
-
 async def websocket_handler(request):
         count = 1
         headers = request.headers
@@ -196,23 +157,42 @@ async def websocket_handler(request):
                 await ws.close()
         else:
             return await handleRequest(request, False, False)
-
            
 
-
-def run_server(host='0.0.0.0', port='8545', endpoint='http://127.0.0.1:8669', keystore='', passcode='', log=True, debug=True, chainid='0x53'):
-    print('run server', "host", host, "chainid", chainid)
+def get_http_app(host, port, endpoint, keystore, passcode, log, debug, chainid):
     try:
-        print(endpoint) 
         response = requests.options(endpoint)
         response.raise_for_status()
     except requests.exceptions.ConnectionError:
         print("Unable to connect to Meter-Restful server.")
         return
 
-    print(make_version())
-    print("Listening on %s:%s" % (host, port))
+    meter.set_endpoint(endpoint)
+    meter.set_chainid(chainid)
+    if keystore == "":
+        meter.set_accounts(solo())
+    else:
+        meter.set_accounts(_keystore(keystore, passcode))
+
+    app = web.Application()
     
+    # app.router.add_get("/",lambda r:  websocket_handler(r))
+    app.router.add_get("/", lambda r: web.Response(headers=res_headers))
+    app.router.add_post("/", lambda r: handle(r, log, debug))
+    app.router.add_options("/", lambda r: web.Response(headers=res_headers))
+    app.router.add_get(
+        "/health", lambda r: web.Response(headers=res_headers, body="OK", content_type="text/plain"))
+    # web.run_app(app, host=host, port=port)
+    return app
+
+
+def get_ws_app(host, port, endpoint, keystore, passcode, log, debug, chainid):
+    try:
+        response = requests.options(endpoint)
+        response.raise_for_status()
+    except requests.exceptions.ConnectionError:
+        print("Unable to connect to Meter-Restful server.")
+        return
 
     meter.set_endpoint(endpoint)
     meter.set_chainid(chainid)
@@ -224,16 +204,77 @@ def run_server(host='0.0.0.0', port='8545', endpoint='http://127.0.0.1:8669', ke
     app = web.Application()
     
     app.router.add_get("/",lambda r:  websocket_handler(r))
-   
+    # app.router.add_get("/", lambda r: web.Response(headers=res_headers))
     # app.router.add_post("/", lambda r: handle(r, log, debug))
-    # app.router.add_options("/", lambda r: web.Response(headers=res_headers))
+    app.router.add_options("/", lambda r: web.Response(headers=res_headers))
     app.router.add_get(
         "/health", lambda r: web.Response(headers=res_headers, body="OK", content_type="text/plain"))
-    web.run_app(app, host=host, port=port)
+    # web.run_app(app, host=host, port=port)
+    return app
 
 
+async def run_server(host, port, endpoint, keystore, passcode, log, debug, chainid):
+    http_app = get_http_app(host, port, endpoint, keystore, passcode, log, debug, chainid)
+    ws_app = get_ws_app(host, port, endpoint, keystore, passcode, log, debug, chainid)
+
+    print('Starting http server')
+    http_runner = web.AppRunner(http_app)
+    await http_runner.setup()
+    http = web.TCPSite(http_runner, host, port)
+    await http.start()
+    print("HTTP Listening on %s:%s" % (host, port))
+
+    print('Starting ws server')
+    ws_runner = web.AppRunner(ws_app)
+    await ws_runner.setup()
+    ws = web.TCPSite(ws_runner, host, int(port)+1)
+    await ws.start()
+    print("Websocket Listening on %s:%s" % (host, int(port)+1))
+
+    while True:
+        await asyncio.sleep(3600)  # sleep forever
+
+
+@click.command()
+@click.option(
+    "--host",
+    default="127.0.0.1",
+)
+@click.option(
+    "--port",
+    default=8545,
+    type=int,
+)
+@click.option(
+    "--endpoint",
+    default="http://127.0.0.1:8669",
+)
+@click.option(
+    "--keystore",
+    default="",
+)
+@click.option(
+    "--passcode",
+    default="",
+)
+@click.option(
+    "--log",
+    default=False,
+    type=bool,
+)
+@click.option(
+    "--debug",
+    default=False,
+    type=bool,
+)
+@click.option(
+    "--chainid",
+    default="0x53"
+)
+def main(host, port, endpoint, keystore, passcode, log, debug, chainid):
+    asyncio.run(run_server(host, port, endpoint, keystore, passcode, log, debug, chainid))
+
+    
 
 if __name__ == '__main__':
-    run_server('0.0.0.0', '8545', 'http://127.0.0.1:8669', '', '', log=True, debug=True, chainid='0x53')
-    
-    
+    main()
