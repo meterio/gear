@@ -1,5 +1,5 @@
 import copy
-from sys import getswitchinterval
+from sys import getswitchinterval, exit
 
 from jsonrpcserver import async_dispatch
 import json
@@ -8,7 +8,6 @@ import websockets
 import aiohttp
 from aiohttp import web
 
-from gear.multi_app import MultiApp
 from .rpc import make_version
 from json.decoder import JSONDecodeError
 from .meter.account import (
@@ -215,8 +214,10 @@ def get_ws_app(host, port, endpoint, keystore, passcode, log, debug, chainid):
 
 async def run_server(host, port, endpoint, keystore, passcode, log, debug, chainid):
     http_app = get_http_app(host, port, endpoint, keystore, passcode, log, debug, chainid)
-    ws_app = get_ws_app(host, port, endpoint, keystore, passcode, log, debug, chainid)
 
+    if http_app == None:
+        print("Could not start http server due to connection problem, check your --endpoint settings")
+        exit(-1)
     print('Starting http server')
     http_runner = web.AppRunner(http_app)
     await http_runner.setup()
@@ -224,6 +225,10 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
     await http.start()
     print("HTTP Listening on %s:%s" % (host, port))
 
+    ws_app = get_ws_app(host, port, endpoint, keystore, passcode, log, debug, chainid)
+    if ws_app == None:
+        print("Could not start http server due to connection problem, check your --endpoint settings")
+        exit(-1)
     print('Starting ws server')
     ws_runner = web.AppRunner(ws_app)
     await ws_runner.setup()

@@ -110,3 +110,5 @@ fabric.properties
 
 # VS Code
 .vscode/
+
+.DS_Store
