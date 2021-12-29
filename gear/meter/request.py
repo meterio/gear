@@ -11,7 +11,7 @@ async def post(endpoint_uri, data, **kwargs):
                 await response.text()
                 return response
             else:
-                await reponse.json()
+                await response.json()
                 return response
 
 async def get(endpoint_uri, params, **kwargs):
