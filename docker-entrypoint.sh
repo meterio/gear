@@ -1,6 +1,10 @@
 #!/bin/bash
 set -eo pipefail
-
+LISTEN_PORT=8545
+LISTEN_HOST=0.0.0.0
+METER_IP=0.0.0.0
+METER_PROTOCOL=http
+METER_PORT=8669
 # if command starts with an option, prepend meter-gear
 if [ "${1:0:1}" = '-' ]; then
 	set -- meter-gear "$@"

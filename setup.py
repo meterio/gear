@@ -24,16 +24,16 @@ setup(
     license="MIT",
     classifiers=[
         'Intended Audience :: Developers',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ],
     keywords="meter blockchain ethereum",
     packages=find_packages("."),
     include_package_data=True,
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     install_requires=[x.strip() for x in open('requirements.txt')],
     entry_points={
         "console_scripts": [
-            "meter-gear=gear.cli:run_server",
+            "meter-gear=gear.cli:main",
         ],
     }
 )

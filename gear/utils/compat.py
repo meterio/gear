@@ -234,6 +234,8 @@ TX_DATA_NON_ZERO_GAS = 68
 
 
 def data_gas(data):
+    if data is None:
+        return 0
     data = decode_hex(data)
     if len(data) == 0:
         return 0

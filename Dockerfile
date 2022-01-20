@@ -12,6 +12,7 @@ RUN apt-get install -qqy automake libtool pkg-config libffi6 libgmp3-dev openssl
 RUN apt-get install -qqy python3-pip
 RUN apt-get install -qqy libssl-dev
 RUN pip3 install -r requirements.txt
+RUN pip3 install websockets
 
 # Build from source code
 RUN make sdist
@@ -25,6 +26,7 @@ WORKDIR /root/artifacts/
 
 RUN apt-get update && apt-get install -qqy python3-pip libssl-dev && rm -rf /var/lib/apt/lists/*
 RUN pip3 install *.tar.gz
+RUN pip3 install websockets
 
 WORKDIR /root/
 RUN rm -rf /root/artifacts
