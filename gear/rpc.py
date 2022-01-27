@@ -355,7 +355,7 @@ async def subscribe_headers(parameter):
 
 @method
 @async_serialize
-async def eth_subscribe(parameter): 
+async def eth_subscribe(parameter, options={}): 
     if parameter == "newHeads":
         return await subscribe_headers(parameter)
        

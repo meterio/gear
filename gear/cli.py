@@ -132,7 +132,7 @@ async def websocket_handler(request):
                                 copy_obj["result"]["k"] = hex(copy_obj["result"]["k"])
                                 copy_obj["result"]["gasLimit"] = hex(copy_obj["result"]["gasLimit"])
                                 copy_obj["result"]["gasUsed"] = hex(copy_obj["result"]["gasUsed"])
-                                copy_obj["result"]["nonce"] = hex(copy_obj["result"]["nonce"])
+                                copy_obj["result"]["nonce"] = hex(copy_obj["result"]["nonce"]) + "0" if len(hex(copy_obj["result"]["nonce"])) % 2 != 0 else hex(copy_obj["result"]["nonce"])
                                 copy_obj["result"]["epoch"] = hex(copy_obj["result"]["epoch"])
 
                                 # convert the subscription object into an appropriate response
