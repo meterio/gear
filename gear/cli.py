@@ -34,6 +34,49 @@ res_headers = {
 
 
 
+BLOCK_FORMATTERS = {
+   
+   
+    "timestamp": encode_number,
+    "gasLimit": encode_number,
+    "gasUsed": encode_number,
+    "epoch":encode_number,
+    "k":encode_number
+    
+}
+
+
+def encode_value(key,value):
+    if key in BLOCK_FORMATTERS:
+        return encode_number(value).decode()
+    return value
+
+
+
+def meter_block_convert_to_eth_block(block):
+    # sha3Uncles, logsBloom, difficaulty, extraData are the required fields. nonce is optional
+    n = block["nonce"]
+    if n == 0:
+        block["nonce"] = '0x0000000000000000'
+    else:
+        block["nonce"] = encode_number(n, 8)
+
+    block['sha3Uncles'] = '0x0000000000000000000000000000000000000000000000000000000000000000'
+    #block['logsBloom'] = '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+    block['difficulty'] = '0x0'
+    block['extraData'] = '0x'
+    if 'kblockData' in block:
+        del block['kblockData']
+    if 'powBlocks' in block:
+        del block['powBlocks']
+    for key, value in block.items():
+        if key in BLOCK_FORMATTERS:
+           block[key] =  encode_number(value).decode()
+    return block
+
+    
+
+
 async def handle(request, logging=False, debug=False):
     jreq = await request.json()
     reqStr = json.dumps(jreq)
@@ -110,51 +153,6 @@ async def handleRequest(request, logging=False, debug=False):
         
         return web.Response(headers=res_headers, content_type="text/plain").text
 
-def noop(value):
-    return value
-
-BLOCK_FORMATTERS = {
-   
-   
-    "timestamp": encode_number,
-    "gasLimit": encode_number,
-    "gasUsed": encode_number,
-    "epoch":encode_number,
-    "k":encode_number
-    
-}
-
-def encode_value(key,value):
-    if key in BLOCK_FORMATTERS:
-        return encode_number(value).decode()
-    return value
-
-
-
-def meter_block_convert_to_eth_block(block):
-    # sha3Uncles, logsBloom, difficaulty, extraData are the required fields. nonce is optional
-    n = block["nonce"]
-    if n == 0:
-        block["nonce"] = '0x0000000000000000'
-    else:
-        block["nonce"] = encode_number(n, 8)
-
-    block['sha3Uncles'] = '0x0000000000000000000000000000000000000000000000000000000000000000'
-    #block['logsBloom'] = '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
-    block['difficulty'] = '0x0'
-    block['extraData'] = '0x'
-    if 'kblockData' in block:
-        del block['kblockData']
-    if 'powBlocks' in block:
-        del block['powBlocks']
-    for key, value in block.items():
-        if key in BLOCK_FORMATTERS:
-           block[key] =  encode_number(value).decode()
-    return block
-
-    
-
-
 
 async def websocket_handler(request):
         count = 1
@@ -174,7 +172,6 @@ async def websocket_handler(request):
                             #send a subscription id to the client
                             await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":"0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827", "id":count}))
                             count = count + 1
-                            
                             #begin subscription
                             while True:
                                
@@ -182,7 +179,7 @@ async def websocket_handler(request):
                                 copy_obj = copy.deepcopy(json.loads(res))
                                 # convert the subscription object into an appropriate response
                                 result = meter_block_convert_to_eth_block(copy_obj['result'])
-                                
+                                # convert the subscription object into an appropriate response
                                 res_obj = {"jsonrpc": copy_obj["jsonrpc"] , "method":"eth_subscription", "params":{"result":result, "subscription":"0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827"}}
                                 await ws.send_str(json.dumps(res_obj))
                         elif (json.loads(msg.data)['method'] == "eth_unsubscribe"):
