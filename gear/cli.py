@@ -122,11 +122,6 @@ BLOCK_FORMATTERS = {
     
 }
 
-def encode_value(key,value):
-    if key in BLOCK_FORMATTERS:
-        return encode_number(value).decode()
-    return value
-
 
 
 def meter_block_convert_to_eth_block(block):
