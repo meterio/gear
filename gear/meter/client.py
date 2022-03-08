@@ -98,9 +98,10 @@ class MeterClient(object, metaclass=Singleton):
             "caller": transaction.get("from", None),
         }
         print("Data:", data)
-        result = await self.accounts(transaction.get(
-            "to", "0x")).make_request(post, data=data)
-        print("RESULT: ", result)
+        toAddr = transaction.get("to", "0x")
+        toAddr = "0x" if toAddr == None else toAddr
+        print("To Addr")
+        result = await self.accounts(toAddr).make_request(post, data=data)
         if result is None or result["reverted"]:
             raise ValueError("Gas estimation failed.")
         return int(result["gasUsed"] * 1.2) + intrinsic_gas(transaction)

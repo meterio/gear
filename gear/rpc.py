@@ -341,50 +341,50 @@ async def trace_block(filter_obj):
 
 
 
-WSURL_NHEADS = 'ws://127.0.0.1:8669/subscriptions/beat'
-connections = {}
+# WSURL_NHEADS = 'ws://127.0.0.1:8669/subscriptions/beat'
+# connections = {}
 
 
-async def subscribe_headers(parameter):
-    hash_object = hashlib.sha224(parameter.encode())
-    hex_dig = hash_object.hexdigest()
-    if not hex_dig in connections:
-        connections[hex_dig] = {'state':1}
-    return await handle_socket(hex_dig)
+# async def subscribe_headers(parameter):
+#     hash_object = hashlib.sha224(parameter.encode())
+#     hex_dig = hash_object.hexdigest()
+#     if not hex_dig in connections:
+#         connections[hex_dig] = {'state':1}
+#     return await handle_socket(hex_dig)
     
 
-@method
-@async_serialize
-async def eth_subscribe(parameter, options={}): 
-    if parameter == "newHeads":
-        return await subscribe_headers(parameter)
+# @method
+# @async_serialize
+# async def eth_subscribe(parameter, options={}): 
+#     if parameter == "newHeads":
+#         return await subscribe_headers(parameter)
        
        
 
 
-@method
-def eth_unsubscribe(parameter):
-    if parameter in connections:
-        connections[parameter]['state'] = 0
+# @method
+# def eth_unsubscribe(parameter):
+#     if parameter in connections:
+#         connections[parameter]['state'] = 0
         
 
 
-async def handle_socket(key):
-        try:
-            async with websockets.connect(WSURL_NHEADS) as ws:
-                try:
+# async def handle_socket(key):
+#         try:
+#             async with websockets.connect(WSURL_NHEADS) as ws:
+#                 try:
                     
-                    if connections[key]['state'] == 1:
+#                     if connections[key]['state'] == 1:
                         
-                        msg = await ws.recv()
+#                         msg = await ws.recv()
                       
-                        return json.loads(msg)
+#                         return json.loads(msg)
                         
-                    elif connections[key]['state'] == 0:
-                        del connections[key]
-                        return True
+#                     elif connections[key]['state'] == 0:
+#                         del connections[key]
+#                         return True
                         
-                except:
-                    await ws.close()
-        except:
-            return {'error code':404, 'message':'Failed to connect to url'}
+#                 except:
+#                     await ws.close()
+#         except:
+#             return {'error code':404, 'message':'Failed to connect to url'}
