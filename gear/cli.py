@@ -238,15 +238,15 @@ async def websocket_handler(request):
                             await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":"0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827", "id":jreq['id']}))
                             
                             #begin subscription
-                            # while True:
+                            while True:
                             
-                            #     res = await handleRequest( json.loads(msg.data), False, False)
-                            #     copy_obj = copy.deepcopy(json.loads(res))
-                            #     # convert the subscription object into an appropriate response
-                            #     result = meter_block_convert_to_eth_block(copy_obj['result'])
+                                res = await handleRequest( json.loads(msg.data), False, False)
+                                copy_obj = copy.deepcopy(json.loads(res))
+                                # convert the subscription object into an appropriate response
+                                result = meter_block_convert_to_eth_block(copy_obj['result'])
                                 
-                            #     res_obj = {"jsonrpc": copy_obj["jsonrpc"] , "method":"eth_subscription", "params":{"result":result, "subscription":"0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827"}}
-                            #     await ws.send_str(json.dumps(res_obj))
+                                res_obj = {"jsonrpc": copy_obj["jsonrpc"] , "method":"eth_subscription", "params":{"result":result, "subscription":"0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827"}}
+                                await ws.send_str(json.dumps(res_obj))
                         elif (jreq['method'] == "eth_unsubscribe"):
                             # handle unsubscribe
                             await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":True, "id":jreq['id']}))
