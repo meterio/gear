@@ -1,5 +1,7 @@
 import aiohttp
-import json
+# import json
+from jsonrpcserver.exceptions import ApiError
+from aiohttp.client_exceptions import ContentTypeError
 
 async def post(endpoint_uri, data, **kwargs):
     async with aiohttp.ClientSession() as session:
@@ -50,25 +52,16 @@ class Restful(object):
         kwargs.setdefault('headers', headers)
         kwargs.setdefault('timeout', 10)
         kwargs.setdefault('chunked', True)
-        error = None
+        errResponse = {"error": "", "code":0}
         try:
             response = await method(self._endpoint, params=params, data=data, **kwargs)
             return await response.json()
         except aiohttp.ClientConnectionError as e:
             print("Unable to connect to Meter-Restful server:")
-            error = e
-            raise e
+            errResponse = {"error": "meter node is not running", "code":-1}
+        except ContentTypeError as e:
+            text = await response.text()
+            errResponse = {"error": text.strip('\n'), "code":-2}
         except Exception as e:
-            text = ''
-            try:
-                text = await response.text()
-                error = Exception(text.strip('\n'))
-            except:
-                error = e
-                raise e
-        print("Meter-Restful server Err:")
-        print("Error message from meter node:", error)
-        #raise error
-        x ='{"id": "' + text.strip('\n') + '"}' 
-        #print(x)
-        return json.loads(x)
+            errResponse = {"error":str(e), "code":-3}
+        return errResponse

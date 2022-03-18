@@ -1,6 +1,6 @@
 import rlp
 import uuid
-import random
+# import random
 from gear.utils.singleton import Singleton
 from gear.utils.types import (
     encode_number,
@@ -21,9 +21,17 @@ from .request import (
     get,
     post,
 )
+from jsonrpcserver.exceptions import ApiError
 
 
-def _attribute(obj, key): return None if obj is None else obj[key]
+def _attribute(obj, key): 
+    if obj:
+        if key in obj:
+            return obj[key]
+        if 'error' in obj and 'code' in obj:
+            raise ApiError(obj['error'], obj['code'])
+        raise ApiError('not valid response from node', -2001, obj)
+    return None
 
 
 class MeterClient(object, metaclass=Singleton):
@@ -100,10 +108,11 @@ class MeterClient(object, metaclass=Singleton):
         print("Data:", data)
         toAddr = transaction.get("to", "0x")
         toAddr = "0x" if toAddr == None else toAddr
-        print("To Addr")
         result = await self.accounts(toAddr).make_request(post, data=data)
-        if result is None or result["reverted"]:
-            raise ValueError("Gas estimation failed.")
+        if result is None:
+            raise ApiError('gas estimation error: no response from server',-1000)
+        if result["reverted"]:
+            raise ApiError('gas estimation error: '+result['vmError'], -1001)
         return int(result["gasUsed"] * 1.2) + intrinsic_gas(transaction)
 
     async def call(self, transaction, block_identifier):

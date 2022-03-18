@@ -1,6 +1,7 @@
 import itertools
 import functools
 import logging
+from sqlite3 import apilevel
 import sys
 import json
 import traceback
@@ -20,6 +21,7 @@ from .utils.types import (
     normalize_number
 )
 from jsonrpcserver import method
+from jsonrpcserver.exceptions import ApiError
 
 
 
@@ -209,7 +211,7 @@ async def eth_blockNumber():
 @async_serialize
 async def eth_estimateGas(transaction):
     formatted_transaction = input_transaction_formatter(transaction)
-    print("FORMATED TX:", formatted_transaction)
+    # print("FORMATED TX:", formatted_transaction)
     result = await meter.estimate_gas(formatted_transaction)
     return encode_number(result)
 
