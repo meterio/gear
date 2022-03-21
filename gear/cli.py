@@ -34,6 +34,10 @@ res_headers = {
 }
 
 
+async def checkHealth(request, logging=False, debug=False):
+    r = {"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":8545}
+    response = await async_dispatch(json.dumps(r), basic_logging=logging, debug=debug)
+    return web.json_response(response.deserialized(), headers=res_headers, status=response.http_status)
 
 async def handle(request, logging=False, debug=False):
     jreq = await request.json()
@@ -311,7 +315,7 @@ def get_http_app(host, port, endpoint, keystore, passcode, log, debug, chainid):
     app.router.add_post("/", lambda r: handle(r, log, debug))
     app.router.add_options("/", lambda r: web.Response(headers=res_headers))
     app.router.add_get(
-        "/health", lambda r: web.Response(headers=res_headers, body="OK", content_type="text/plain"))
+        "/health", lambda r: checkHealth(r,log,debug))
     # web.run_app(app, host=host, port=port)
     return app
 
