@@ -172,10 +172,8 @@ def normalize_block_identifier(block_identifier):
     if type(block_identifier) == dict:
         for k, v in block_identifier.items():
             if k == "blockHash":
-                print("blockHash value", v)
                 return v
             if k == "blockNumber":
-                print("blockNumber value", v)
                 return v
         raise ValueError("Unknown block identifier encoding: {0}".format(block_identifier))
 

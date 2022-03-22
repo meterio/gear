@@ -109,23 +109,36 @@ def meter_receipt_log_convert_to_eth_log(receipt, index, log):
     }
 
 
-def meter_log_convert_to_eth_log(address, logs):
-    if logs:
+def meter_log_convert_to_eth_log(logs):
+    if logs and isinstance(logs,list):
         return [
             {
                 "address": log["address"],
                 "logIndex": encode_number(index),
-                "blockNumber":encode_number(log["meta"]["blockNumber"]) ,
+                "blockNumber":encode_number(log["meta"]["blockNumber"]),
                 "blockHash": log["meta"]["blockID"],
                 "transactionHash": log["meta"]["txID"],
                 "transactionIndex": encode_number(0),
                 # "address": address,
                 "data": log["data"],
                 "topics": log["topics"],
-		"removed": False
-}
+                "removed": False
+            }
             for index, log in enumerate(logs)
         ]
+    if logs and isinstance(logs, object):
+        return {
+            "address": logs["address"],
+            "logIndex": encode_number(0), # FIXME: might be wrong
+            "blockNumber":encode_number(logs["meta"]["blockNumber"]) ,
+            "blockHash": logs["meta"]["blockID"],
+            "transactionHash": logs["meta"]["txID"],
+            "transactionIndex": encode_number(0),
+            # "address": address,
+            "data": logs["data"],
+            "topics": logs["topics"],
+            "removed": False
+        }
     return []
 
 

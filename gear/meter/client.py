@@ -105,13 +105,14 @@ class MeterClient(object, metaclass=Singleton):
             "value": (encode_number(transaction.get("value", 0))).decode("utf-8"),
             "caller": transaction.get("from", None),
         }
-        print("Data:", data)
         toAddr = transaction.get("to", "0x")
         toAddr = "0x" if toAddr == None else toAddr
         result = await self.accounts(toAddr).make_request(post, data=data)
         if result is None:
+            print("empty response, estimate gas with data:", data)
             raise ApiError('gas estimation error: no response from server',-1000)
         if result["reverted"]:
+            print("reverted, estimate gas with data:", data)
             raise ApiError('gas estimation error: '+result['vmError'], -1001)
         return int(result["gasUsed"] * 1.2) + intrinsic_gas(transaction)
 
@@ -193,13 +194,10 @@ class MeterClient(object, metaclass=Singleton):
         result = []
         step = 100
         if isinstance(address, list) and len(address) > step:
-            print('get logs with loop')
             while len(address)>0:
                 result.extend(await self.get_logs_bounded(address[:step],query))
                 address = address[step:]
-                print('len:',len(address))
         else:
-            print('get logs with direct call')
             result = await self.get_logs_bounded(address, query)
         return result
 
@@ -209,28 +207,21 @@ class MeterClient(object, metaclass=Singleton):
                 query['address'] = address
             elif isinstance(address, str):
                 query['address'] = [address]
-        print("POST to /logs/events: ", query)
         logs = await self.events.make_request(post, data=query)
-        result = meter_log_convert_to_eth_log(address, logs)
+        result = meter_log_convert_to_eth_log(logs)
         return result
 
 
     async def get_trace_filter(self, filter_obj):
-        print("filter_obj", filter_obj)
         result = await self.debug.openeth_trace_filter.make_request(post, data=filter_obj)
-        print("trace_filter result", result)
         return result
 
     async def get_trace_transaction(self, filter_obj):
-        print("filter_obj", filter_obj, type(filter_obj))
         result = await self.debug.openeth_trace_transaction.make_request(post, data=[filter_obj])
-        print("trace_transaction result", result)
         return result
 
     async def get_trace_block(self, filter_obj):
-        print("filter_obj", filter_obj, type(filter_obj))
         result = await self.debug.openeth_trace_block.make_request(post, data=[filter_obj])
-        print("trace_block result", result)
         return result
 class BlockFilter(object):
 
