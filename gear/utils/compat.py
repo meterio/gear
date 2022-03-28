@@ -146,9 +146,9 @@ def meter_log_convert_to_eth_log(logs):
 # transaction
 #
 def meter_tx_convert_to_eth_tx(tx):
-    r = '0x'
-    s = '0x'
-    v = '0x'
+    r = '0x0000000000000000000000000000000000000000000000000000000000000000'
+    s = '0x0000000000000000000000000000000000000000000000000000000000000000'
+    v = '0x00'
     if tx["ethTx"] and tx["ethTx"]["r"] and tx["ethTx"]["s"] and tx["ethTx"]["v"]:
         r = tx["ethTx"]["r"]
         s = tx["ethTx"]["s"]
