@@ -95,6 +95,11 @@ class MeterClient(object, metaclass=Singleton):
         blk = await self.blocks("best").make_request(get)
         return _attribute(blk, "number")
 
+    async def get_syncing(self):
+        blk = await self.blocks("best").make_request(get)
+        num = encode_number(_attribute(blk, 'number'))
+        return {"startingBlock":num, "currentBlock": num, "highestBlock": num}
+
     async def get_block_id(self, block_identifier):
         blk = await self.blocks(block_identifier).make_request(get)
         return _attribute(blk, "id")

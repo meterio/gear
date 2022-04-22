@@ -11,7 +11,6 @@ import aiohttp
 from aiohttp import web
 
 from gear.utils.compat import meter_log_convert_to_eth_log
-
 from .rpc import make_version
 from json.decoder import JSONDecodeError
 from .meter.account import (

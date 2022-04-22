@@ -206,6 +206,11 @@ async def eth_getCode(address, block_identifier="best"):
 async def eth_blockNumber():
     return encode_number(await meter.get_block_number())
 
+@method
+@async_serialize
+async def eth_syncing():
+    return await meter.get_syncing()
+
 
 @method
 @async_serialize
