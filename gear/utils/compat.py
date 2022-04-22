@@ -268,7 +268,7 @@ def data_gas(data):
 
 def intrinsic_gas(transaction):
     total = TX_GAS
-    gas = data_gas(transaction["data"])
+    gas = data_gas(transaction.get("data", "0x"))
     total += gas
     cgas = CLAUSE_GAS
     if "to" not in transaction:

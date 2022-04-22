@@ -101,7 +101,7 @@ class MeterClient(object, metaclass=Singleton):
 
     async def estimate_gas(self, transaction):
         data = {
-            "data": transaction["data"],
+            "data": transaction.get("data",'0x'),
             "value": (encode_number(transaction.get("value", 0))).decode("utf-8"),
             "caller": transaction.get("from", None),
         }
@@ -121,7 +121,7 @@ class MeterClient(object, metaclass=Singleton):
             "revision": block_identifier,
         }
         data = {
-            "data": transaction["data"],
+            "data": transaction.get("data", "0x"),
             "value": (encode_number(transaction.get("value", 0))).decode("utf-8"),
             "caller": transaction.get("from", None),
         }
