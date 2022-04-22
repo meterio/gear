@@ -481,7 +481,11 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
     default="0x53"
 )
 def main(host, port, endpoint, keystore, passcode, log, debug, chainid):
-    asyncio.run(run_server(host, port, endpoint, keystore, passcode, log, debug, chainid))
+    chainIdHex = chainid
+    if not chainid.startswith('0x'):
+        chainIdHex = hex(int(chainid))
+
+    asyncio.run(run_server(host, port, endpoint, keystore, passcode, log, debug, chainIdHex))
 
     
 
