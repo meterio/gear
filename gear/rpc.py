@@ -211,6 +211,12 @@ async def eth_blockNumber():
 async def eth_syncing():
     return await meter.get_syncing()
 
+@method
+@async_serialize
+async def eth_maxPriorityFeePerGas():
+    return encode_number(0)
+
+
 
 @method
 @async_serialize
