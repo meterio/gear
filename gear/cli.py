@@ -292,18 +292,20 @@ async def websocket_handler(request):
                             if isinstance(jreq['params'], list):
                                 params = jreq['params']
                                 if params[0] == 'newHeads':
-                                    if key in newHeadListeners:
-                                        continue
+                                    # if key in newHeadListeners:
+                                    # continue
                                     newHeadListeners[key] = ws
-                                    print("SUBSCRIBE to newHead")
+                                    print("SUBSCRIBE to newHead", "key:", key)
                                     #send a subscription id to the client
                                     await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
                                 
                                 if params[0] == 'logs':
-                                    if key in logListeners:
-                                        continue
-                                    logListeners[key] = {"ws":ws, "filters":params[1:]}
-                                    print("SUBSCRIBE to logs", "filters:", params[1:])
+                                    # if key in logListeners:
+                                    # continue
+                                    digest = hash_digest(str(params[1:]))
+                                    newkey = key+'-'+digest
+                                    logListeners[key+"-"+digest] = {"ws":ws, "filters":params[1:]}
+                                    print("SUBSCRIBE to logs", "key:",newkey, "filters:", params[1:])
                                     await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
 
                             #begin subscription
