@@ -207,8 +207,8 @@ def match_filter(log, filters):
         addressMatch = True
         topicsMatch = True
         if 'address' in filter:
-            address = filter['address']
-            if address != log['address']:
+            address = filter['address'].lower()
+            if address != log['address'].lower():
                 addressMatch = False
     
         if 'topics' in filter and isinstance(filter['topics'], list) and len(filter['topics'])>0:
