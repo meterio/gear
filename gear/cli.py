@@ -104,8 +104,10 @@ async def handleRequest(request, logging=False, debug=False):
         # request = await request.text()
         response = await async_dispatch(json.dumps(r), basic_logging=logging, debug=debug)
         if response.wanted:
-           
-            logger.info("ws res #%s: %s", str(r['id']), json.dumps(response.deserialized()))
+            if method in ['eth_getBlockByNumber', 'eth_call']:
+                logger.info("ws res #%s: DONE", str(r['id']))
+            else:
+                logger.info("ws res #%s: %s", str(r['id']), json.dumps(response.deserialized()))
             responses.append(json.loads(json.dumps(response.deserialized())))
             
 
@@ -147,16 +149,24 @@ def meter_block_convert_to_eth_block(block):
 
     # sha3Uncles is always empty on meter
     block['sha3Uncles'] = '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347'
+    if not ('transactions' in block):
+        block['transactions'] = []
     # TODO: fix "fake" transactions root
     if len(block['transactions']) ==0:
         block['transactionsRoot'] = '0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421'
     #block['logsBloom'] = '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
-    block['difficulty'] = '0x'
-    block['extraData'] = '0x'
+    block['difficulty'] = '0x0'
+    block['extraData'] = '0x0'
+    block['baseFeePerGas'] = '0x0'
+    block['mixHash'] = '0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421'
     if 'kblockData' in block:
         del block['kblockData']
     if 'powBlocks' in block:
         del block['powBlocks']
+    if 'committee' in block:
+        del block['committee']
+    if 'qc' in block:
+        del block['qc']
     for key, value in block.items():
         if key in BLOCK_FORMATTERS:
            block[key] =  encode_number(value).decode()
@@ -196,7 +206,7 @@ async def run_new_head_observer(endpoint):
                             del newHeadListeners[key]
                             logger.error('error happend for client ws %s, ignored: %s', key, e)
         except Exception as e:
-            logger.error('error happened in head observer %s', e)
+            logger.error('error happened in head observer: %s', e)
             logger.error('retry in 10 seconds')
             await asyncio.sleep(10)
 
@@ -264,6 +274,7 @@ async def websocket_handler(request):
                  await ws.prepare(request)
                  key = request.headers.get("sec-websocket-key", "")
                  async for msg in ws:
+                    # logger.info('ws req: %s', msg)
                     if msg.type == aiohttp.WSMsgType.TEXT and msg.data.strip():
                         # if is a valid json request
                         jreq = json.loads(msg.data)

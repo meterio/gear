@@ -43,7 +43,7 @@ def force_text(value):
     elif is_binary(value):
         return codecs.decode(value, "iso-8859-1")
     else:
-        raise TypeError("Unsupported type: {0}".format(type(value)))
+        raise TypeError("Unsupported type: {0} of value: {1}".format(type(value), value))
 
 
 def force_bytes(value):
@@ -52,7 +52,7 @@ def force_bytes(value):
     elif is_text(value):
         return codecs.encode(value, "iso-8859-1")
     else:
-        raise TypeError("Unsupported type: {0}".format(type(value)))
+        raise TypeError("Unsupported type: {0} of value: {1}".format(type(value), value))
 
 
 def force_obj_to_text(obj, skip_unsupported=False):
@@ -141,7 +141,7 @@ def encode_data(data, length=None):
 def encode_number(value, length=None):
     '''Encode interger quantity `data`.'''
     if not is_numeric(value):
-        raise ValueError("Unsupported type: {0}".format(type(value)))
+        raise ValueError("Unsupported type: {0} for value: {1}".format(type(value), value))
     hex_value = encode_data(int_to_big_endian(value), length)
 
     if length:

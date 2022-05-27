@@ -53,18 +53,21 @@ def meter_block_convert_to_eth_block(block):
     # sha3Uncles is always empty on meter
     block['sha3Uncles'] = '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347'
     # TODO: fix "fake" transaction root
+    if not ('transactions' in block):
+        block['transactions'] = []
     if len(block['transactions'])==0:
         block['transactionsRoot'] = '0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421'
-    block['difficulty'] = '0x0000000000000000'
-    block['baseFeePerGas'] = ''
-    block['mixHash'] = '0xb3f518789875db7b010ca990abe6870afaf491c5f19a610ddb4c4f35ebcf4291'
     #block['logsBloom'] = '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
     block['difficulty'] = '0x0'
-    block['extraData'] = '0x'
+    block['extraData'] = '0x0'
     if 'kblockData' in block:
         del block['kblockData']
     if 'powBlocks' in block:
         del block['powBlocks']
+    if 'committee' in block:
+        del block['committee']
+    if 'qc' in block:
+        del block['qc']
     return {
         ETH_BLOCK_KWARGS_MAP.get(k, k): BLOCK_FORMATTERS.get(k, noop)(v)
         for k, v in block.items()
