@@ -110,7 +110,6 @@ def meter_receipt_log_convert_to_eth_log(receipt, index, log):
 
 
 def meter_log_convert_to_eth_log(logs):
-    print(logs)
     if logs and isinstance(logs,list):
         return [
             {

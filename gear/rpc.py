@@ -222,7 +222,6 @@ async def eth_maxPriorityFeePerGas():
 @async_serialize
 async def eth_estimateGas(transaction):
     formatted_transaction = input_transaction_formatter(transaction)
-    # print("FORMATED TX:", formatted_transaction)
     result = await meter.estimate_gas(formatted_transaction)
     return encode_number(result)
 

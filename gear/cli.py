@@ -8,6 +8,7 @@ import asyncio
 import websockets
 import hashlib
 import aiohttp
+import traceback
 from aiohttp import web
 
 from gear.utils.compat import meter_log_convert_to_eth_log
@@ -17,6 +18,8 @@ from .meter.account import (
     solo,
     keystore as _keystore,
 )
+import logging, logging.config
+from .log import  LOGGING_CONFIG
 
 from .utils.types import (
 
@@ -34,8 +37,11 @@ res_headers = {
     "Connection": "keep-alive",
 }
 
-SUB_ID = '0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827'
+logging.config.dictConfig(LOGGING_CONFIG)
 
+logger = logging.getLogger('gear' )
+
+SUB_ID = '0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827'
 async def checkHealth(request, logging=False, debug=False):
     r = {"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":8545}
     response = await async_dispatch(json.dumps(r), basic_logging=logging, debug=debug)
@@ -50,22 +56,20 @@ async def handle(request, logging=False, debug=False):
         arrayNeeded = False
 
     responses = []
-    print('\n'+'-'*40)
-    print("call: [%s] ts:%.0f"% (jreq[0]['method'] if jreq and len(jreq)>=1 else 'unknown', datetime.now().timestamp()),
-              "\nRequest:", reqStr)
+    method = jreq[0]['method'] if jreq and len(jreq)>=1 else 'unknown'
+    id = jreq[0]['id'] if jreq and len(jreq)>=1 else 'unknown'
+    logger.info("http req #%s: %s", id, reqStr)
     for r in jreq:
         # request = await request.text()
         response = await async_dispatch(json.dumps(r), basic_logging=logging, debug=debug)
         if response.wanted:
-            # print("Response #%s:"%(str(r['id'])), json.dumps(response.deserialized()))
-            print("Response #%s: DONE"%(str(r['id'])))
+            # logger.info("Response #%s:"%(str(r['id'])), json.dumps(response.deserialized()))
+            logger.info("http res #%s: DONE", str(r['id']))
             responses.append(json.loads(json.dumps(response.deserialized())))
         if response.http_status != 200:
-            print("Error response #%s:" %(str(r['id'])), json.dumps(response.deserialized()))
-            print("HTTP_STATUS: ", response.http_status)
+            logger.error("http res #%s: %s %s", str(r['id']), str(response.http_status),json.dumps(response.deserialized()))
 
 
-    print("-"*40)
     if len(responses):
         if arrayNeeded:
             return web.json_response(responses, headers=res_headers, status=response.http_status)
@@ -93,20 +97,18 @@ async def handleRequest(request, logging=False, debug=False):
         arrayNeeded = False
 
     responses = []
-    print('\n'+'-'*40)
-    print("call: [%s] ts:%.0f"% (jreq[0]['method'] if jreq and len(jreq)>=1 else 'unknown', datetime.now().timestamp()),
-              "\nRequest:", reqStr)
+    id = jreq[0]['id'] if jreq and len(jreq)>=1 else 'unknown'
+    logger.info("ws req #%s: %s", id, reqStr)
     for r in jreq:
         method = r['method']
         # request = await request.text()
         response = await async_dispatch(json.dumps(r), basic_logging=logging, debug=debug)
         if response.wanted:
            
-            print("Response #%s:"%(str(r['id'])), json.dumps(response.deserialized()))
+            logger.info("ws res #%s: %s", str(r['id']), json.dumps(response.deserialized()))
             responses.append(json.loads(json.dumps(response.deserialized())))
             
 
-    print("-"*40)
     if len(responses):
         if arrayNeeded:
             return web.json_response(responses, headers=res_headers, status=response.http_status).text
@@ -177,15 +179,14 @@ async def run_new_head_observer(endpoint):
         try:
             async with websockets.connect(ws_endpoint) as beatWS:
                 async for msg in beatWS:
-                    # print('got: ', msg)
                     for key in list(newHeadListeners.keys()):
                         ws = newHeadListeners[key]
                         r = json.loads(msg)
                         if r.get("number"):
                             num = int(r.get("number"), 16)
-                            print("forward block %d to conn %s" %(num,key))
+                            logger.info("forward block %d to ws %s",num,key)
                         else:
-                            print('forward to conn', key)
+                            logger.info('forward to ws %s', key)
 
                         r['timestamp']  = hex(r['timestamp'])
                         r['gasLimit'] = hex(r['gasLimit']).replace('0x0', '')
@@ -196,10 +197,10 @@ async def run_new_head_observer(endpoint):
                             await ws.send_str(out)
                         except Exception as e:
                             del newHeadListeners[key]
-                            print('error happend for client ws', key, 'ignored', e)
+                            logger.info('error happend for client ws %s, ignored: %s', key, e)
         except Exception as e:
-            print('error happend in head observer', e)
-            print('retry in 10 seconds')
+            logger.info('error happend in head observer', e)
+            logger.info('retry in 10 seconds')
             await asyncio.sleep(10)
 
 def match_filter(log, filters):
@@ -228,14 +229,13 @@ async def run_event_observer(endpoint):
         try:
             async with websockets.connect(ws_endpoint) as eventWS:
                 async for msg in eventWS:
-                    # print('got: ', msg)
                     for key in list(logListeners.keys()):
                         info = logListeners[key]
                         ws = info['ws']
                         filters = info['filters']
                         log = json.loads(msg)
                         if not match_filter(log, filters):
-                            print('not match filter, skip now', "key:", key)
+                            logger.info('not match filter, skip now for key %s', key)
                             continue
                         result = meter_log_convert_to_eth_log(log)
                         result['logIndex'] = result['logIndex'].decode('utf-8')
@@ -246,12 +246,12 @@ async def run_event_observer(endpoint):
                             await ws.send_str(out)
                         except Exception as e:
                             del logListeners[key]
-                            print('error happend for client ws', key, 'ignored', e)
+                            logger.error('error happend: %s for client ws: %s ', e, key)
         except Exception as e:
-            print('error happend in event observer', e)
-            print('log:', log)
-            print('filters:', filters)
-            print('retry in 10 seconds')
+            logger.error('error happend in event observer: %s', e)
+            logger.error('log: %s', log)
+            logger.error('filters: %s', filters)
+            logger.error('retry in 10 seconds')
             await asyncio.sleep(10)
 
 async def websocket_handler(request):
@@ -267,7 +267,6 @@ async def websocket_handler(request):
                  await ws.prepare(request)
                  key = request.headers.get("sec-websocket-key", "")
                  async for msg in ws:
-                    # print("REQ: ", msg.data)
                     if msg.type == aiohttp.WSMsgType.TEXT and msg.data.strip():
                         # if is a valid json request
                         jreq = json.loads(msg.data)
@@ -295,7 +294,7 @@ async def websocket_handler(request):
                                     # if key in newHeadListeners:
                                     # continue
                                     newHeadListeners[key] = ws
-                                    print("SUBSCRIBE to newHead", "key:", key)
+                                    logger.info("SUBSCRIBE to newHead: %s", key)
                                     #send a subscription id to the client
                                     await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
                                 
@@ -305,7 +304,7 @@ async def websocket_handler(request):
                                     digest = hash_digest(str(params[1:]))
                                     newkey = key+'-'+digest
                                     logListeners[key+"-"+digest] = {"ws":ws, "filters":params[1:]}
-                                    print("SUBSCRIBE to logs", "key:",newkey, "filters:", params[1:])
+                                    logger.info("SUBSCRIBE to logs: %s, filter: %s",newkey, params[1:])
                                     await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
 
                             #begin subscription
@@ -325,12 +324,12 @@ async def websocket_handler(request):
                                 del newHeadListeners[key]
                             if key in logListeners:
                                 del logListeners[key]
-                            print("UNSUBSCRIBE key:", key)
+                            logger.info("UNSUBSCRIBE: %s", key)
                             await ws.close()
                         else:
                             # handle normal requests
                             res = await handleRequest(json.loads(msg.data), False, False)
-                            print("Forward response to ws conn %s" % key)
+                            logger.info("forward response to ws %s",key)
                             await ws.send_str(res)
                             # await ws.send_str(json.dumps({"jsonrpc":"2.0", "result":json.loads(res), "id":count}))
                         
@@ -349,12 +348,13 @@ async def websocket_handler(request):
                         del newHeadListeners[key]
                         await ws.close(code=ws.close_code, message=msg.extra)
                     else:
-                        print("unknown REQ: ", msg)
+                        logger.warning("Unknown REQ: %s", msg)
                         pass
                         # await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":"", "id":count}))
             
             except Exception as e:
-                print("ERROR HAPPENED:", e)
+                logger.error("ERROR HAPPENED: %s", e)
+                traceback.print_stake(e)
                 await ws.close()
         else:
             # return await handleRequest(request, False, False)
@@ -366,7 +366,7 @@ def get_http_app(host, port, endpoint, keystore, passcode, log, debug, chainid):
         response = requests.options(endpoint)
         response.raise_for_status()
     except requests.exceptions.ConnectionError:
-        print("Unable to connect to Meter-Restful server.")
+        logger.error("Unable to connect to Meter-Restful server.")
         return
 
     meter.set_endpoint(endpoint)
@@ -393,7 +393,7 @@ def get_ws_app(host, port, endpoint, keystore, passcode, log, debug, chainid):
         response = requests.options(endpoint)
         response.raise_for_status()
     except requests.exceptions.ConnectionError:
-        print("Unable to connect to Meter-Restful server.")
+        logger.error("Unable to connect to Meter-Restful server.")
         return
 
     meter.set_endpoint(endpoint)
@@ -419,25 +419,23 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
     http_app = get_http_app(host, port, endpoint, keystore, passcode, log, debug, chainid)
 
     if http_app == None:
-        print("Could not start http server due to connection problem, check your --endpoint settings")
+        logger.error("Could not start http server due to connection problem, check your --endpoint settings")
         exit(-1)
-    print('Starting http server')
     http_runner = web.AppRunner(http_app)
     await http_runner.setup()
     http = web.TCPSite(http_runner, host, port)
     await http.start()
-    print("HTTP Listening on %s:%s" % (host, port))
+    logger.info("HTTP server started: http://%s:%s", host, port)
 
     ws_app = get_ws_app(host, port, endpoint, keystore, passcode, log, debug, chainid)
     if ws_app == None:
-        print("Could not start http server due to connection problem, check your --endpoint settings")
+        logger.error("Could not start http server due to connection problem, check your --endpoint settings")
         exit(-1)
-    print('Starting ws server')
     ws_runner = web.AppRunner(ws_app)
     await ws_runner.setup()
     ws = web.TCPSite(ws_runner, host, int(port)+1)
     await ws.start()
-    print("Websocket Listening on %s:%s" % (host, int(port)+1))
+    logger.info("Websocket server started: ws://%s:%s", host, int(port)+1)
 
     head_observer = asyncio.create_task(run_new_head_observer(endpoint))
     event_observer = asyncio.create_task(run_event_observer(endpoint))

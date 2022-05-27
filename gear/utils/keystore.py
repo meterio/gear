@@ -139,7 +139,6 @@ def decode_keystore_json(jsondata, pw):
     # Decrypt the ciphertext
     o = decrypt(ctext, enckey, cipherparams)
     # Compare the provided MAC with a locally computed MAC
-    # print(b'macdata: ' + encode_hex(derivedkey[16:32] + ctext))
     mac1 = sha3(derivedkey[16:32] + ctext)
     mac2 = decode_hex(cryptdata["mac"])
     if mac1 != mac2:
