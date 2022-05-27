@@ -187,20 +187,17 @@ async def run_new_head_observer(endpoint):
                             logger.info("forward block %d to ws %s",num,key)
                         else:
                             logger.info('forward to ws %s', key)
-
-                        r['timestamp']  = hex(r['timestamp'])
-                        r['gasLimit'] = hex(r['gasLimit']).replace('0x0', '')
-                        r['gasUsed'] = hex(r['gasUsed']).replace('0x0','')
-                        r['nonce'] = hex(r['nonce']).replace('0x0', '0x0000000000000000')
+                        blk = meter_block_convert_to_eth_block(r)
                         try:
-                            out = json.dumps({"jsonrpc": "2.0", "method":"eth_subscription" ,"params":{"subscription":SUB_ID, "result":r}})
+                            out = json.dumps({"jsonrpc": "2.0", "method":"eth_subscription" ,"params":{"subscription":SUB_ID, "result":blk}})
+                            logger.info('res: %s', out)
                             await ws.send_str(out)
                         except Exception as e:
                             del newHeadListeners[key]
-                            logger.info('error happend for client ws %s, ignored: %s', key, e)
+                            logger.error('error happend for client ws %s, ignored: %s', key, e)
         except Exception as e:
-            logger.info('error happend in head observer', e)
-            logger.info('retry in 10 seconds')
+            logger.error('error happened in head observer %s', e)
+            logger.error('retry in 10 seconds')
             await asyncio.sleep(10)
 
 def match_filter(log, filters):
@@ -354,7 +351,7 @@ async def websocket_handler(request):
             
             except Exception as e:
                 logger.error("ERROR HAPPENED: %s", e)
-                traceback.print_stake(e)
+                traceback.print_stack(e)
                 await ws.close()
         else:
             # return await handleRequest(request, False, False)
