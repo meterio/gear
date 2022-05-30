@@ -275,7 +275,17 @@ async def websocket_handler(request):
                  key = request.headers.get("sec-websocket-key", "")
                  async for msg in ws:
                     # logger.info('ws req: %s', msg)
-                    if msg.type == aiohttp.WSMsgType.TEXT and msg.data.strip():
+                    if msg.type == aiohttp.WSMsgType.ERROR:
+                        print('ws connection closed with exception %s' % ws.exception())
+                        await ws.close(code=ws.close_code, message=msg.extra)
+                        if key in newHeadListeners:
+                            del newHeadListeners[key]
+                        return
+                    elif msg.type == aiohttp.WSMsgType.TEXT and msg.data.strip():
+                        if msg.data == 'close':
+                            print('close message received, close right now')
+                            await ws.close()
+                            return
                         # if is a valid json request
                         jreq = json.loads(msg.data)
 
@@ -334,6 +344,7 @@ async def websocket_handler(request):
                                 del logListeners[key]
                             logger.info("UNSUBSCRIBE: %s", key)
                             await ws.close()
+                            return
                         else:
                             # handle normal requests
                             res = await handleRequest(json.loads(msg.data), False, False)
@@ -344,17 +355,6 @@ async def websocket_handler(request):
                     elif msg.type == aiohttp.WSMsgType.BINARY:
                         await ws.send_str(msg.data)
                         
-                    elif msg.type == aiohttp.WSMsgType.PING:
-                        await ws.ping()
-                        
-                    elif msg.type == aiohttp.WSMsgType.PONG:
-                        await ws.pong()
-                        
-                    elif ws.closed:
-                        if key not in newHeadListeners:
-                            return
-                        del newHeadListeners[key]
-                        await ws.close(code=ws.close_code, message=msg.extra)
                     else:
                         logger.warning("Unknown REQ: %s", msg)
                         pass
@@ -364,6 +364,7 @@ async def websocket_handler(request):
                 logger.error("ERROR HAPPENED: %s", e)
                 traceback.print_stack(e)
                 await ws.close()
+                return
         else:
             # return await handleRequest(request, False, False)
             pass
