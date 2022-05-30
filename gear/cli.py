@@ -262,112 +262,98 @@ async def run_event_observer(endpoint):
             await asyncio.sleep(10)
 
 async def websocket_handler(request):
-        headers = request.headers
-        if (
-            headers.get("connection", "").lower() == "upgrade"
-            and headers.get("upgrade", "").lower() == "websocket"
-            
-        ):
-        
-            ws = web.WebSocketResponse()
-            try:
-                 await ws.prepare(request)
-                 key = request.headers.get("sec-websocket-key", "")
-                 async for msg in ws:
-                    # logger.info('ws req: %s', msg)
-                    if msg.type == aiohttp.WSMsgType.ERROR:
-                        print('ws connection closed with exception %s' % ws.exception())
-                        await ws.close(code=ws.close_code, message=msg.extra)
-                        if key in newHeadListeners:
-                            del newHeadListeners[key]
-                        return
-                    elif msg.type == aiohttp.WSMsgType.TEXT and msg.data.strip():
-                        if msg.data == 'close':
-                            print('close message received, close right now')
-                            await ws.close()
-                            return
-                        # if is a valid json request
-                        jreq = json.loads(msg.data)
-
-                        # handle batch requests
-                        if isinstance(jreq, list):
-                            ress = []
-                            for r in jreq:
-                                res = await handleRequest(r, False, False)
-                                ress.append(json.loads(res))
-                            await ws.send_str(json.dumps(ress))
-                            continue
-
-                        if 'method' not in jreq or 'id' not in jreq:
-                            # not a valid json request
-                            continue
-                        
-                        id = jreq['id']
-
-                        if jreq['method'] == "eth_subscribe":
-                            # handle subscribe
-                            if isinstance(jreq['params'], list):
-                                params = jreq['params']
-                                if params[0] == 'newHeads':
-                                    # if key in newHeadListeners:
-                                    # continue
-                                    newHeadListeners[key] = ws
-                                    logger.info("SUBSCRIBE to newHead: %s", key)
-                                    #send a subscription id to the client
-                                    await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
-                                
-                                if params[0] == 'logs':
-                                    # if key in logListeners:
-                                    # continue
-                                    digest = hash_digest(str(params[1:]))
-                                    newkey = key+'-'+digest
-                                    logListeners[key+"-"+digest] = {"ws":ws, "filters":params[1:]}
-                                    logger.info("SUBSCRIBE to logs: %s, filter: %s",newkey, params[1:])
-                                    await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
-
-                            #begin subscription
-                            # while True:
-                            
-                            #     res = await handleRequest( json.loads(msg.data), False, False)
-                            #     copy_obj = copy.deepcopy(json.loads(res))
-                            #     # convert the subscription object into an appropriate response
-                            #     result = meter_block_convert_to_eth_block(copy_obj['result'])
-                                
-                            #     res_obj = {"jsonrpc": copy_obj["jsonrpc"] , "method":"eth_subscription", "params":{"result":result, "subscription":SUB_ID}}
-                            #     await ws.send_str(json.dumps(res_obj))
-                        elif (jreq['method'] == "eth_unsubscribe"):
-                            # handle unsubscribe
-                            await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":True, "id":id}))
-                            if key in newHeadListeners:
-                                del newHeadListeners[key]
-                            if key in logListeners:
-                                del logListeners[key]
-                            logger.info("UNSUBSCRIBE: %s", key)
-                            await ws.close()
-                            return
-                        else:
-                            # handle normal requests
-                            res = await handleRequest(json.loads(msg.data), False, False)
-                            logger.info("forward response to ws %s",key)
-                            await ws.send_str(res)
-                            # await ws.send_str(json.dumps({"jsonrpc":"2.0", "result":json.loads(res), "id":count}))
-                        
-                    elif msg.type == aiohttp.WSMsgType.BINARY:
-                        await ws.send_str(msg.data)
-                        
-                    else:
-                        logger.warning("Unknown REQ: %s", msg)
-                        pass
-                        # await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":"", "id":count}))
-            
-            except Exception as e:
-                logger.error("ERROR HAPPENED: %s", e)
-                traceback.print_stack(e)
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+    key = request.headers.get("sec-websocket-key", "")
+    async for msg in ws:
+        # logger.info('ws req: %s', msg)
+        if msg.type == aiohttp.WSMsgType.ERROR:
+            print('ws connection closed with exception %s' % ws.exception())
+            await ws.close(code=ws.close_code, message=msg.extra)
+            if key in newHeadListeners:
+                del newHeadListeners[key]
+            return
+        elif msg.type == aiohttp.WSMsgType.TEXT and msg.data.strip():
+            if msg.data == 'close':
+                print('close message received, close right now')
                 await ws.close()
                 return
+            # if is a valid json request
+            jreq = json.loads(msg.data)
+
+            # handle batch requests
+            if isinstance(jreq, list):
+                ress = []
+                for r in jreq:
+                    res = await handleRequest(r, False, False)
+                    ress.append(json.loads(res))
+                await ws.send_str(json.dumps(ress))
+                continue
+
+            if 'method' not in jreq or 'id' not in jreq:
+                # not a valid json request
+                continue
+            
+            id = jreq['id']
+
+            if jreq['method'] == "eth_subscribe":
+                # handle subscribe
+                if isinstance(jreq['params'], list):
+                    params = jreq['params']
+                    if params[0] == 'newHeads':
+                        # if key in newHeadListeners:
+                        # continue
+                        newHeadListeners[key] = ws
+                        logger.info("SUBSCRIBE to newHead: %s", key)
+                        #send a subscription id to the client
+                        await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
+                    
+                    if params[0] == 'logs':
+                        # if key in logListeners:
+                        # continue
+                        digest = hash_digest(str(params[1:]))
+                        newkey = key+'-'+digest
+                        logListeners[key+"-"+digest] = {"ws":ws, "filters":params[1:]}
+                        logger.info("SUBSCRIBE to logs: %s, filter: %s",newkey, params[1:])
+                        await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
+
+                #begin subscription
+                # while True:
+                
+                #     res = await handleRequest( json.loads(msg.data), False, False)
+                #     copy_obj = copy.deepcopy(json.loads(res))
+                #     # convert the subscription object into an appropriate response
+                #     result = meter_block_convert_to_eth_block(copy_obj['result'])
+                    
+                #     res_obj = {"jsonrpc": copy_obj["jsonrpc"] , "method":"eth_subscription", "params":{"result":result, "subscription":SUB_ID}}
+                #     await ws.send_str(json.dumps(res_obj))
+            elif (jreq['method'] == "eth_unsubscribe"):
+                # handle unsubscribe
+                await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":True, "id":id}))
+                if key in newHeadListeners:
+                    del newHeadListeners[key]
+                if key in logListeners:
+                    del logListeners[key]
+                logger.info("UNSUBSCRIBE: %s", key)
+                await ws.close()
+                return
+            else:
+                # handle normal requests
+                res = await handleRequest(json.loads(msg.data), False, False)
+                logger.info("forward response to ws %s",key)
+                await ws.send_str(res)
+                # await ws.send_str(json.dumps({"jsonrpc":"2.0", "result":json.loads(res), "id":count}))
+            
+        elif msg.type == aiohttp.WSMsgType.BINARY:
+            await ws.send_str(msg.data)
+            
         else:
-            # return await handleRequest(request, False, False)
+            logger.warning("Unknown REQ: %s", msg)
             pass
+            # await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":"", "id":count}))
+    
+    print('websocket connection closed: ', key)
+    return ws
            
 
 def get_http_app(host, port, endpoint, keystore, passcode, log, debug, chainid):
