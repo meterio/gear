@@ -44,6 +44,8 @@ BLOCK_FORMATTERS = {
 
 def meter_block_convert_to_eth_block(block):
     # sha3Uncles, logsBloom, difficaulty, extraData are the required fields. nonce is optional
+    if not ('nonce' in block):
+        block['nonce'] = 0
     n = block["nonce"]
     if n == 0:
         block["nonce"] = '0x0000000000000000'

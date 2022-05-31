@@ -55,9 +55,11 @@ class Restful(object):
         errResponse = {"error": "", "code":0}
         try:
             response = await method(self._endpoint, params=params, data=data, **kwargs)
+            # print("RESPONSE: ", response)
+            # print("typeof", type(response))
             return await response.json()
         except aiohttp.ClientConnectionError as e:
-            print("Unable to connect to Meter-Restful server:")
+            print("Unable to connect to Meter-Restful server:", e)
             errResponse = {"error": "meter node is not running", "code":-1}
         except ContentTypeError as e:
             text = await response.text()
