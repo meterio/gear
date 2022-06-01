@@ -148,6 +148,8 @@ def meter_block_convert_to_eth_block(block):
         block["nonce"] = '0x0000000000000000'
     else:
         block["nonce"] = encode_number(n, 8)
+    if not ('mixHash' in block):
+        block['mixHash'] = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
     # sha3Uncles is always empty on meter
     block['sha3Uncles'] = '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347'
@@ -444,7 +446,7 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
 @click.command()
 @click.option(
     "--host",
-    default="127.0.0.1",
+    default="0.0.0.0",
 )
 @click.option(
     "--port",
