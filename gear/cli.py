@@ -1,5 +1,4 @@
-from os import times
-from sys import getswitchinterval, exit
+from sys import exit
 
 
 from jsonrpcserver import async_dispatch
@@ -215,19 +214,51 @@ async def run_new_head_observer(endpoint):
 
 def match_filter(log, filters):
     for filter in filters:
-        addressMatch = True
-        topicsMatch = True
-        if 'address' in filter:
+        addressMatch = False
+        topicsMatch = False
+        
+        addrFilter = filter.get('address',None)
+        if addrFilter is None:
+            addressMatch = True
+        elif isinstance(addrFilter, str):
+            # exact match
             address = filter['address'].lower()
-            if address != log['address'].lower():
-                addressMatch = False
-    
-        if 'topics' in filter and isinstance(filter['topics'], list) and len(filter['topics'])>0:
-            topics = filter['topics']
-            for index, topic in enumerate(topics):
-                if len(log['topics']) < index+1 or topic and topic != log['topics'][index]:
-                    topicsMatch = False
+            if address == log['address'].lower():
+                addressMatch = True
+        elif isinstance(addrFilter, list):
+            # 'or' options with array
+            for addr in addrFilter:
+                address = addr.lower()
+                if address == log['address'].lower():
+                    addressMatch = True
                     break
+   
+        topicFilter = filter.get('topics', [])
+        if isinstance(topicFilter, list) and len(topicFilter)>0:
+            indexMatch = []
+            for index, topic in enumerate(topicFilter):
+                if topic is None:
+                    indexMatch.push(True)
+                elif isinstance(topic, str):
+                    if len(log['topics']) >= index+1 and topic == log['topics'][index]:
+                        indexMatch.push(True)
+                    else:
+                        topicsMatch = False
+                elif isinstance(topic, list):
+                    indexMatch = False
+                    for t in topic:
+                        if len(log['topics']) >=index+1 and t == log['topics'][index]:
+                            indexMatch.push(True)
+                            break
+                    else:
+                        # didnt find match topic
+                        indexMatch.push(False)
+                else:
+                    indexMatch.push(False)
+            topicsMatch = all(indexMatch)
+        else:
+            topicsMatch = True
+            
         if addressMatch and topicsMatch:
             return True
     return False
@@ -316,8 +347,16 @@ async def websocket_handler(request):
                         # continue
                         digest = hash_digest(str(params[1:]))
                         newkey = key+'-'+digest
-                        logListeners[key+"-"+digest] = {"ws":ws, "filters":params[1:]}
-                        logger.info("SUBSCRIBE to logs: %s, filter: %s",newkey, params[1:])
+                        filters = params[1:]
+                        # TODO: filter out invalid filters
+                        if isinstance(filters, list):
+                            pass
+                        else:
+                            filters = [filters]
+
+                        logListeners[newkey] = {"ws":ws, "filters":filters}
+                        logger.info("SUBSCRIBE to logs: %s, filter: %s",newkey, filters)
+                    
                         await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
 
                 #begin subscription
@@ -435,9 +474,10 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
     await ws.start()
     logger.info("Websocket server started: ws://%s:%s", host, int(port)+1)
 
-    head_observer = asyncio.create_task(run_new_head_observer(endpoint))
-    event_observer = asyncio.create_task(run_event_observer(endpoint))
-    await head_observer
+    asyncio.create_task(run_new_head_observer(endpoint))
+    asyncio.create_task(run_event_observer(endpoint))
+    await asyncio.Event().wait()
+
     # while True:
         # await asyncio.sleep(3600)  # sleep forever
 
