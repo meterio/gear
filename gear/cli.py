@@ -302,16 +302,16 @@ async def websocket_handler(request):
     async for msg in ws:
         # logger.info('ws req: %s', msg)
         if msg.type == aiohttp.WSMsgType.ERROR:
-            print('ws connection closed with exception %s' % ws.exception())
+            logger.error('ws connection closed with exception %s',ws.exception())
             await ws.close(code=ws.close_code, message=msg.extra)
             if key in newHeadListeners:
                 del newHeadListeners[key]
-            return
+            # return
         elif msg.type == aiohttp.WSMsgType.TEXT and msg.data.strip():
             if msg.data == 'close':
-                print('close message received, close right now')
+                logger.error('close message received, close right now')
                 await ws.close()
-                return
+                # return
             # if is a valid json request
             jreq = json.loads(msg.data)
 
@@ -329,10 +329,13 @@ async def websocket_handler(request):
                 continue
             
             id = jreq['id']
+            method = jreq['method']
 
-            if jreq['method'] == "eth_subscribe":
+            if method == "eth_subscribe":
                 # handle subscribe
-                if isinstance(jreq['params'], list):
+                if not isinstance(jreq['params'], list):
+                    logger.error("params is not list, not supported")
+                else:
                     params = jreq['params']
                     if params[0] == 'newHeads':
                         # if key in newHeadListeners:
@@ -340,9 +343,8 @@ async def websocket_handler(request):
                         newHeadListeners[key] = ws
                         logger.info("SUBSCRIBE to newHead: %s", key)
                         #send a subscription id to the client
-                        await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
                     
-                    if params[0] == 'logs':
+                    elif params[0] == 'logs':
                         # if key in logListeners:
                         # continue
                         digest = hash_digest(str(params[1:]))
@@ -356,19 +358,17 @@ async def websocket_handler(request):
 
                         logListeners[newkey] = {"ws":ws, "filters":filters}
                         logger.info("SUBSCRIBE to logs: %s, filter: %s",newkey, filters)
+                    elif params[0] == 'newPendingTransactions':
+                        pass
+                        # FIXME: support this
+                    elif params[0] == 'syncing':
+                        pass
+                        # FIXME: support this
+                    else:
+                        logger.error("not supported subscription: %s", params[0])
                     
-                        await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
+                    await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
 
-                #begin subscription
-                # while True:
-                
-                #     res = await handleRequest( json.loads(msg.data), False, False)
-                #     copy_obj = copy.deepcopy(json.loads(res))
-                #     # convert the subscription object into an appropriate response
-                #     result = meter_block_convert_to_eth_block(copy_obj['result'])
-                    
-                #     res_obj = {"jsonrpc": copy_obj["jsonrpc"] , "method":"eth_subscription", "params":{"result":result, "subscription":SUB_ID}}
-                #     await ws.send_str(json.dumps(res_obj))
             elif (jreq['method'] == "eth_unsubscribe"):
                 # handle unsubscribe
                 await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":True, "id":id}))
@@ -378,7 +378,7 @@ async def websocket_handler(request):
                     del logListeners[key]
                 logger.info("UNSUBSCRIBE: %s", key)
                 await ws.close()
-                return
+                # return
             else:
                 # handle normal requests
                 res = await handleRequest(json.loads(msg.data), False, False)
