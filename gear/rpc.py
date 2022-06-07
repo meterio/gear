@@ -10,7 +10,7 @@ from .utils.types import (
     normalize_block_identifier,
     normalize_number
 )
-from jsonrpcserver import JsonRpcError, method, Success, Error
+from jsonrpcserver import method, Success, Error
 
 #
 # formatter

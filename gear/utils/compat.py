@@ -44,15 +44,8 @@ BLOCK_FORMATTERS = {
 
 def meter_block_convert_to_eth_block(block):
     # sha3Uncles, logsBloom, difficaulty, extraData are the required fields. nonce is optional
-    if not ('nonce' in block):
-        block['nonce'] = 0
-    n = block["nonce"]
-    if n == 0:
-        block["nonce"] = '0x0000000000000000'
-    else:
-        block["nonce"] = encode_number(n, 8)
-    if not ('mixHash' in block):
-        block['mixHash'] = '0x0000000000000000000000000000000000000000000000000000000000000000'
+    block['nonce'] = encode_number(block.get('nonce', None), 8)
+    block['mixHash'] = '0x0000000000000000000000000000000000000000000000000000000000000000'
     # sha3Uncles is always empty on meter
     block['sha3Uncles'] = '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347'
     # TODO: fix "fake" transaction root

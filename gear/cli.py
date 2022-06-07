@@ -6,7 +6,7 @@ import hashlib
 import aiohttp
 from aiohttp import web
 
-from gear.utils.compat import meter_log_convert_to_eth_log
+from gear.utils.compat import meter_log_convert_to_eth_log, meter_block_convert_to_eth_block
 from json.decoder import JSONDecodeError
 from .meter.account import (
     solo,
@@ -37,57 +37,7 @@ logger = logging.getLogger('gear' )
 
 SUB_ID = '0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827'
 
-async def checkHealth():
-    r = {"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":8545}
-    res = await handleTextRequest(json.dumps(r), 'Health')
-    return web.Response(text=res, content_type="application/json")
 
-BLOCK_FORMATTERS = {
-    "timestamp": encode_number,
-    "gasLimit": encode_number,
-    "gasUsed": encode_number,
-    "epoch":encode_number,
-    "k":encode_number
-}
-
-
-def meter_block_convert_to_eth_block(block):
-    # sha3Uncles, logsBloom, difficaulty, extraData are the required fields. nonce is optional
-    if not ('nonce' in block):
-        block['nonce'] = 0
-    n = block["nonce"]
-    if n == 0:
-        block["nonce"] = '0x0000000000000000'
-    else:
-        block["nonce"] = encode_number(n, 8)
-    if not ('mixHash' in block):
-        block['mixHash'] = '0x0000000000000000000000000000000000000000000000000000000000000000'
-
-    # sha3Uncles is always empty on meter
-    block['sha3Uncles'] = '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347'
-    if not ('transactions' in block):
-        block['transactions'] = []
-    # TODO: fix "fake" transactions root
-    if len(block['transactions']) ==0:
-        block['transactionsRoot'] = '0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421'
-    #block['logsBloom'] = '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
-    block['difficulty'] = '0x0'
-    block['extraData'] = '0x'
-    # block['baseFeePerGas'] = '0x0'
-    if 'kblockData' in block:
-        del block['kblockData']
-    if 'powBlocks' in block:
-        del block['powBlocks']
-    if 'committee' in block:
-        del block['committee']
-    if 'qc' in block:
-        del block['qc']
-    for key, value in block.items():
-        if key in BLOCK_FORMATTERS:
-           block[key] =  encode_number(value).decode()
-    return block
-
-    
 
 newHeadListeners = {} # ws connection id -> ws connection
 logListeners = {} # ws connection id -> { ws: ws connection, filters: filters }
@@ -207,6 +157,11 @@ async def run_event_observer(endpoint):
             logger.error('filters: %s', filters)
             logger.error('retry in 10 seconds')
             await asyncio.sleep(10)
+            
+async def checkHealth():
+    r = {"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":8545}
+    res = await handleTextRequest(json.dumps(r), 'Health')
+    return web.Response(text=res, content_type="application/json")
 
 async def handleTextRequest(reqText, protocol):
     try:

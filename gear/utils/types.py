@@ -2,11 +2,10 @@ import codecs
 import functools
 from eth_utils import is_hex
 from rlp.utils import (
-    big_endian_to_int,
-    int_to_big_endian,
     encode_hex,
     decode_hex as _decode_hex,
 )
+import re
 
 
 def bytearray_to_bytestr(value):
@@ -24,6 +23,11 @@ def is_binary(value):
 def is_text(value):
     return isinstance(value, str)
 
+def is_hex_str(value):
+    return isinstance(value, str) and re.fullmatch(r"^0x[0-9a-fA-F]+$", value) is not None
+
+def is_numeric_str(value):
+    return isinstance(value, str) and re.fullmatch(r"[0-9]+", value) is not None
 
 def is_string(value):
     return isinstance(value, (bytes, str, bytearray))
@@ -41,18 +45,18 @@ def force_text(value):
     if is_text(value):
         return value
     elif is_binary(value):
-        return codecs.decode(value, "iso-8859-1")
+        return codecs.decode(value, "utf-8")
     else:
-        raise TypeError("Unsupported type: {0} of value: {1}".format(type(value), value))
+        raise TypeError("force_text Unsupported type: {0} of value: {1}".format(type(value), value))
 
 
 def force_bytes(value):
     if is_binary(value):
         return bytes(value)
     elif is_text(value):
-        return codecs.encode(value, "iso-8859-1")
+        return codecs.encode(value, "utf-8")
     else:
-        raise TypeError("Unsupported type: {0} of value: {1}".format(type(value), value))
+        raise TypeError("force_bytes Unsupported type: {0} of value: {1}".format(type(value), value))
 
 
 def force_obj_to_text(obj, skip_unsupported=False):
@@ -137,33 +141,41 @@ def encode_data(data, length=None):
     return add_0x(encode_hex(zpad(data, length or 0)))
 
 
-@coerce_return_to_bytes
 def encode_number(value, length=None):
     '''Encode interger quantity `data`.'''
-    if not is_numeric(value):
-        raise ValueError("Unsupported type: {0} for value: {1}".format(type(value), value))
-    hex_value = encode_data(int_to_big_endian(value), length)
-
-    if length:
-        return hex_value
+    hex_str = ''
+    if value is None:
+        hex_str = '0x'
+    elif is_hex_str(value):
+        hex_str = value
+    elif is_numeric(value):
+        hex_str = '0x0' if value == 0 else hex(value)
     else:
-        return add_0x(strip_0x(hex_value).lstrip(b'0') or b'0')
+        raise ValueError("encode_number Unsupported type: {0} for value: {1}".format(type(value), value))
+    tail = hex_str[2:]
+    if length:
+        actLen = len(tail)
+        for i in range(length*2-actLen):
+            tail = '0'+tail
+    return '0x' + tail
 
+
+        
 
 @coerce_args_to_bytes
 def decode_hex(value):
     return _decode_hex(strip_0x(value))
 
 
-@coerce_args_to_bytes
 def normalize_number(value):
     if is_numeric(value):
         return value
-    elif is_string(value):
-        if value.startswith(b'0x'):
-            return int(value, 16)
-        else:
-            return big_endian_to_int(value)
+    elif is_numeric_str:
+        return int(value, 10)
+    elif is_hex_str(value):
+        return int(value, 16)
+    elif is_hex_str('0x'+value):
+        return int('0x'+value, 16)
     else:
         raise ValueError("Unknown numeric encoding: {0}".format(value))
 
