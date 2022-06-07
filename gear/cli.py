@@ -1,17 +1,12 @@
-from sys import exit
-
-
 from jsonrpcserver import async_dispatch
 import json
 import asyncio
 import websockets
 import hashlib
 import aiohttp
-import traceback
 from aiohttp import web
 
 from gear.utils.compat import meter_log_convert_to_eth_log
-from .rpc import make_version
 from json.decoder import JSONDecodeError
 from .meter.account import (
     solo,
@@ -27,8 +22,8 @@ from .utils.types import (
 from .meter.client import meter
 import requests
 import click
-from datetime import datetime
 
+from .rpc import get_block
 
 res_headers = {
     "Access-Control-Allow-Headers": "*",
@@ -41,101 +36,19 @@ logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger('gear' )
 
 SUB_ID = '0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827'
-async def checkHealth(request, logging=False, debug=False):
+
+async def checkHealth():
     r = {"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":8545}
-    response = await async_dispatch(json.dumps(r), basic_logging=logging, debug=debug)
-    return web.json_response(response.deserialized(), headers=res_headers, status=response.http_status)
-
-async def handle(request, logging=False, debug=False):
-    jreq = await request.json()
-    reqStr = json.dumps(jreq)
-    arrayNeeded = True
-    if not isinstance(jreq, list):
-        jreq = [jreq]
-        arrayNeeded = False
-
-    responses = []
-    method = jreq[0]['method'] if jreq and len(jreq)>=1 else 'unknown'
-    id = jreq[0]['id'] if jreq and len(jreq)>=1 else 'unknown'
-    logger.info("http req #%s: %s", id, reqStr)
-    for r in jreq:
-        # request = await request.text()
-        response = await async_dispatch(json.dumps(r), basic_logging=logging, debug=debug)
-        if response.wanted:
-            # logger.info("Response #%s:"%(str(r['id'])), json.dumps(response.deserialized()))
-            logger.info("http res #%s: DONE", str(r['id']))
-            responses.append(json.loads(json.dumps(response.deserialized())))
-        if response.http_status != 200:
-            logger.error("http res #%s: %s %s", str(r['id']), str(response.http_status),json.dumps(response.deserialized()))
-
-
-    if len(responses):
-        if arrayNeeded:
-            return web.json_response(responses, headers=res_headers, status=response.http_status)
-        else:
-            return web.json_response(responses[0], headers=res_headers, status=response.http_status)
-    else:
-        return web.Response(headers=res_headers, content_type="text/plain")
-
-
-
-
-
-
-
-
-
-async def handleRequest(request, logging=False, debug=False):
-   
-    jreq = request
-    
-    reqStr = json.dumps(jreq)
-    arrayNeeded = True
-    if not isinstance(jreq, list):
-        jreq = [jreq]
-        arrayNeeded = False
-
-    responses = []
-    id = jreq[0]['id'] if jreq and len(jreq)>=1 else 'unknown'
-    logger.info("ws req #%s: %s", id, reqStr)
-    for r in jreq:
-        method = r['method']
-        # request = await request.text()
-        response = await async_dispatch(json.dumps(r), basic_logging=logging, debug=debug)
-        if response.wanted:
-            if method in ['eth_getBlockByNumber', 'eth_call']:
-                logger.info("ws res #%s: DONE", str(r['id']))
-            else:
-                logger.info("ws res #%s: %s", str(r['id']), json.dumps(response.deserialized()))
-            responses.append(json.loads(json.dumps(response.deserialized())))
-            
-
-    if len(responses):
-        if arrayNeeded:
-            return web.json_response(responses, headers=res_headers, status=response.http_status).text
-           
-            
-        else:
-            return web.json_response(responses[0], headers=res_headers, status=response.http_status,
-             content_type='application/json', dumps=json.dumps
-            ).text
-           
-    else:
-        
-        return web.Response(headers=res_headers, content_type="text/plain").text
-
+    res = await handleTextRequest(json.dumps(r), 'Health')
+    return web.Response(text=res, content_type="application/json")
 
 BLOCK_FORMATTERS = {
-   
-   
     "timestamp": encode_number,
     "gasLimit": encode_number,
     "gasUsed": encode_number,
     "epoch":encode_number,
     "k":encode_number
-    
 }
-
 
 
 def meter_block_convert_to_eth_block(block):
@@ -295,6 +208,23 @@ async def run_event_observer(endpoint):
             logger.error('retry in 10 seconds')
             await asyncio.sleep(10)
 
+async def handleTextRequest(reqText, protocol):
+    try:
+        jreq = json.loads(reqText)
+        id = jreq[0].get('id', -1) if isinstance(jreq, list) else jreq.get('id',-1)
+        logger.info("%s Req #%d: %s", protocol, id, reqText)
+        res = await async_dispatch(json.dumps(jreq))
+        logger.info("%s Res #%d: %s", protocol, id, res)
+        return res
+    except JSONDecodeError as e:
+        return None
+
+async def http_handler(request):
+    req = await request.text()
+    res = await handleTextRequest(req, 'HTTP')
+    if res is not None:
+        return web.Response(text=res, content_type="application/json")
+
 async def websocket_handler(request):
     ws = web.WebSocketResponse()
     await ws.prepare(request)
@@ -306,70 +236,57 @@ async def websocket_handler(request):
             await ws.close(code=ws.close_code, message=msg.extra)
             if key in newHeadListeners:
                 del newHeadListeners[key]
-            # return
+
         elif msg.type == aiohttp.WSMsgType.TEXT and msg.data.strip():
             if msg.data == 'close':
                 logger.error('close message received, close right now')
                 await ws.close()
-                # return
-            # if is a valid json request
-            jreq = json.loads(msg.data)
 
-            # handle batch requests
-            if isinstance(jreq, list):
-                ress = []
-                for r in jreq:
-                    res = await handleRequest(r, False, False)
-                    ress.append(json.loads(res))
-                await ws.send_str(json.dumps(ress))
+            try:
+                jreq = json.loads(msg.data)
+                if 'method' not in jreq or 'id' not in jreq:
+                    # not a valid json request
+                    continue
+                
+                id = jreq['id']
+                method = jreq['method']
+                params = jreq['params']
+            except TypeError as e:
+                logger.warning('ws: json decode error but ignored for input: %s', msg.data)
                 continue
-
-            if 'method' not in jreq or 'id' not in jreq:
-                # not a valid json request
-                continue
-            
-            id = jreq['id']
-            method = jreq['method']
 
             if method == "eth_subscribe":
                 # handle subscribe
                 if not isinstance(jreq['params'], list):
                     logger.error("params is not list, not supported")
+                    continue
+
+                if params[0] == 'newHeads':
+                    newHeadListeners[key] = ws
+                    logger.info("SUBSCRIBE to newHead: %s", key)
+                
+                elif params[0] == 'logs':
+                    digest = hash_digest(str(params[1:]))
+                    newkey = key+'-'+digest
+                    filters = params[1:]
+                    # TODO: filter out invalid filters
+                    if not isinstance(filters, list):
+                        filters = [filters]
+
+                    logListeners[newkey] = {"ws":ws, "filters":filters}
+                    logger.info("SUBSCRIBE to logs: %s, filter: %s",newkey, filters)
+                elif params[0] == 'newPendingTransactions':
+                    # FIXME: support this
+                    pass
+                elif params[0] == 'syncing':
+                    # FIXME: support this
+                    pass
                 else:
-                    params = jreq['params']
-                    if params[0] == 'newHeads':
-                        # if key in newHeadListeners:
-                        # continue
-                        newHeadListeners[key] = ws
-                        logger.info("SUBSCRIBE to newHead: %s", key)
-                        #send a subscription id to the client
-                    
-                    elif params[0] == 'logs':
-                        # if key in logListeners:
-                        # continue
-                        digest = hash_digest(str(params[1:]))
-                        newkey = key+'-'+digest
-                        filters = params[1:]
-                        # TODO: filter out invalid filters
-                        if isinstance(filters, list):
-                            pass
-                        else:
-                            filters = [filters]
+                    logger.error("not supported subscription: %s", params[0])
+                
+                await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
 
-                        logListeners[newkey] = {"ws":ws, "filters":filters}
-                        logger.info("SUBSCRIBE to logs: %s, filter: %s",newkey, filters)
-                    elif params[0] == 'newPendingTransactions':
-                        pass
-                        # FIXME: support this
-                    elif params[0] == 'syncing':
-                        pass
-                        # FIXME: support this
-                    else:
-                        logger.error("not supported subscription: %s", params[0])
-                    
-                    await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":SUB_ID, "id":id}))
-
-            elif (jreq['method'] == "eth_unsubscribe"):
+            elif (method == "eth_unsubscribe"):
                 # handle unsubscribe
                 await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":True, "id":id}))
                 if key in newHeadListeners:
@@ -378,108 +295,64 @@ async def websocket_handler(request):
                     del logListeners[key]
                 logger.info("UNSUBSCRIBE: %s", key)
                 await ws.close()
-                # return
             else:
                 # handle normal requests
-                res = await handleRequest(json.loads(msg.data), False, False)
+                res = await handleTextRequest(msg.data, 'WS')
                 logger.info("forward response to ws %s",key)
                 await ws.send_str(res)
-                # await ws.send_str(json.dumps({"jsonrpc":"2.0", "result":json.loads(res), "id":count}))
             
         elif msg.type == aiohttp.WSMsgType.BINARY:
             await ws.send_str(msg.data)
             
         else:
             logger.warning("Unknown REQ: %s", msg)
-            pass
-            # await ws.send_str(json.dumps({"jsonrpc": "2.0" ,"result":"", "id":count}))
     
     print('websocket connection closed: ', key)
     return ws
            
 
-def get_http_app(host, port, endpoint, keystore, passcode, log, debug, chainid):
-    try:
-        response = requests.options(endpoint)
-        response.raise_for_status()
-    except requests.exceptions.ConnectionError:
-        logger.error("Unable to connect to Meter-Restful server.")
-        return
-
-    meter.set_endpoint(endpoint)
-    meter.set_chainid(chainid)
-    if keystore == "":
-        meter.set_accounts(solo())
-    else:
-        meter.set_accounts(_keystore(keystore, passcode))
-
-    app = web.Application()
-    
-    # app.router.add_get("/",lambda r:  websocket_handler(r))
-    app.router.add_get("/", lambda r: web.Response(headers=res_headers))
-    app.router.add_post("/", lambda r: handle(r, log, debug))
-    app.router.add_options("/", lambda r: web.Response(headers=res_headers))
-    app.router.add_get(
-        "/health", lambda r: checkHealth(r,log,debug))
-    # web.run_app(app, host=host, port=port)
-    return app
-
-
-def get_ws_app(host, port, endpoint, keystore, passcode, log, debug, chainid):
-    try:
-        response = requests.options(endpoint)
-        response.raise_for_status()
-    except requests.exceptions.ConnectionError:
-        logger.error("Unable to connect to Meter-Restful server.")
-        return
-
-    meter.set_endpoint(endpoint)
-    meter.set_chainid(chainid)
-    if keystore == "":
-        meter.set_accounts(solo())
-    else:
-        meter.set_accounts(_keystore(keystore, passcode))
-
-    app = web.Application()
-    
-    app.router.add_get("/",lambda r:  websocket_handler(r))
-    # app.router.add_get("/", lambda r: web.Response(headers=res_headers))
-    # app.router.add_post("/", lambda r: handle(r, log, debug))
-    app.router.add_options("/", lambda r: web.Response(headers=res_headers))
-    app.router.add_get(
-        "/health", lambda r: web.Response(headers=res_headers, body="OK", content_type="text/plain"))
-    # web.run_app(app, host=host, port=port)
-    return app
-
-
 async def run_server(host, port, endpoint, keystore, passcode, log, debug, chainid):
-    http_app = get_http_app(host, port, endpoint, keystore, passcode, log, debug, chainid)
+    try:
+        response = requests.options(endpoint)
+        response.raise_for_status()
+    except requests.exceptions.ConnectionError:
+        logger.error("Unable to connect to Meter-Restful server.")
+        return
 
-    if http_app == None:
-        logger.error("Could not start http server due to connection problem, check your --endpoint settings")
-        exit(-1)
+    meter.set_endpoint(endpoint)
+    meter.set_chainid(chainid)
+    if keystore == "":
+        meter.set_accounts(solo())
+    else:
+        meter.set_accounts(_keystore(keystore, passcode))
+
+    http_app = web.Application()
+    http_app.router.add_post("/", http_handler)
+    http_app.router.add_get("/", lambda r: web.Response(headers=res_headers))
+    http_app.router.add_options("/", lambda r: web.Response(headers=res_headers))
+    http_app.router.add_get("/health", lambda r: checkHealth())
+
+    ws_app = web.Application()
+    ws_app.router.add_get('/', websocket_handler)
+    ws_app.router.add_options("/", lambda r: web.Response(headers=res_headers))
+    ws_app.router.add_get(
+        "/health", lambda r: web.Response(headers=res_headers, body="OK", content_type="text/plain"))
+
     http_runner = web.AppRunner(http_app)
+    ws_runner = web.AppRunner(ws_app)
     await http_runner.setup()
-    http = web.TCPSite(http_runner, host, port)
+    await ws_runner.setup()
+    http = web.TCPSite(http_runner, host, int(port))
+    ws = web.TCPSite(ws_runner, host, int(port)+1)
     await http.start()
     logger.info("HTTP server started: http://%s:%s", host, port)
-
-    ws_app = get_ws_app(host, port, endpoint, keystore, passcode, log, debug, chainid)
-    if ws_app == None:
-        logger.error("Could not start http server due to connection problem, check your --endpoint settings")
-        exit(-1)
-    ws_runner = web.AppRunner(ws_app)
-    await ws_runner.setup()
-    ws = web.TCPSite(ws_runner, host, int(port)+1)
     await ws.start()
     logger.info("Websocket server started: ws://%s:%s", host, int(port)+1)
+
 
     asyncio.create_task(run_new_head_observer(endpoint))
     asyncio.create_task(run_event_observer(endpoint))
     await asyncio.Event().wait()
-
-    # while True:
-        # await asyncio.sleep(3600)  # sleep forever
 
 
 @click.command()
@@ -524,8 +397,6 @@ def main(host, port, endpoint, keystore, passcode, log, debug, chainid):
         chainIdHex = hex(int(chainid))
 
     asyncio.run(run_server(host, port, endpoint, keystore, passcode, log, debug, chainIdHex))
-
-    
 
 if __name__ == '__main__':
     main()

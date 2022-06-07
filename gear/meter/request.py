@@ -1,6 +1,5 @@
 import aiohttp
 # import json
-from jsonrpcserver.exceptions import ApiError
 from aiohttp.client_exceptions import ContentTypeError
 
 async def post(endpoint_uri, data, **kwargs):

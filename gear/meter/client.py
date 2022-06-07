@@ -21,7 +21,7 @@ from .request import (
     get,
     post,
 )
-from jsonrpcserver.exceptions import ApiError
+from jsonrpcserver import JsonRpcError
 
 
 def _attribute(obj, key): 
@@ -29,8 +29,9 @@ def _attribute(obj, key):
         if key in obj:
             return obj[key]
         if 'error' in obj and 'code' in obj:
-            raise ApiError(obj['error'], obj['code'])
-        raise ApiError('not valid response from node', -2001, obj)
+            print('throwing error')
+            raise JsonRpcError(int(obj['code']), 'Fullnode Error', obj['error'])
+        raise JsonRpcError(10000, 'Fullnode Error', 'not valid response from node')
     return None
 
 
@@ -115,10 +116,10 @@ class MeterClient(object, metaclass=Singleton):
         result = await self.accounts(toAddr).make_request(post, data=data)
         if result is None:
             print("empty response, estimate gas with data:", data)
-            raise ApiError('gas estimation error: no response from server',-1000)
+            raise JsonRpcError(20000,'Estimate Error', 'no response from server')
         if result["reverted"]:
             print("reverted, estimate gas with data:", data)
-            raise ApiError('gas estimation error: '+result['vmError'], -1001)
+            raise JsonRpcError(20000, 'Estimate Error', result['vmError'])
         return int(result["gasUsed"] * 1.2) + intrinsic_gas(transaction)
 
     async def call(self, transaction, block_identifier):
@@ -147,8 +148,7 @@ class MeterClient(object, metaclass=Singleton):
             "raw": raw
         }
         result = await self.eth_transactions.make_request(post, data=data)
-
-        return _attribute(result, "id")
+        return result
 
     async def get_transaction_by_hash(self, tx_hash):
         tx = await self.transactions(tx_hash).make_request(get)

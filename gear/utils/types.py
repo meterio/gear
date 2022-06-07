@@ -97,7 +97,7 @@ def coerce_args_to_bytes(fn):
 def coerce_return_to_bytes(fn):
     @functools.wraps(fn)
     def inner(*args, **kwargs):
-        return force_obj_to_bytes(fn(*args, **kwargs), True)
+        return force_obj_to_bytes(fn(*args, **kwargs), True).decode()
     return inner
 
 
