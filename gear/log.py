@@ -22,22 +22,22 @@ LOGGING_CONFIG = {
         },
         'aiohttp.access': { 
             'handlers': ['default'],
-            'level': 'WARN',
+            'level': 'INFO',
             'propagate': False
         },
         'aiohttp.web': { 
             'handlers': ['default'],
-            'level': 'WARN',
+            'level': 'INFO',
             'propagate': False
         },
         'aiohttp.client': { 
             'handlers': ['default'],
-            'level': 'WARN',
+            'level': 'INFO',
             'propagate': False
         },
         'aiohttp.server': { 
             'handlers': ['default'],
-            'level': 'WARN',
+            'level': 'INFO',
             'propagate': False
         },
         '__main__': {  # if __name__ == '__main__'
