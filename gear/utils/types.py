@@ -2,6 +2,7 @@ import codecs
 import functools
 from eth_utils import is_hex
 from rlp.utils import (
+    big_endian_to_int,
     encode_hex,
     decode_hex as _decode_hex,
 )
@@ -27,7 +28,7 @@ def is_hex_str(value):
     return isinstance(value, str) and re.fullmatch(r"^0x[0-9a-fA-F]+$", value) is not None
 
 def is_numeric_str(value):
-    return isinstance(value, str) and re.fullmatch(r"[0-9]+", value) is not None
+    return isinstance(value, str) and re.fullmatch(r"^[0-9]+$", value) is not None
 
 def is_string(value):
     return isinstance(value, (bytes, str, bytearray))

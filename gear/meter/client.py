@@ -23,15 +23,13 @@ from .request import (
 )
 from jsonrpcserver import JsonRpcError
 
-
 def _attribute(obj, key): 
     if obj:
         if key in obj:
             return obj[key]
         if 'error' in obj and 'code' in obj:
-            print('throwing error')
-            raise JsonRpcError(int(obj['code']), 'Fullnode Error', obj['error'])
-        raise JsonRpcError(10000, 'Fullnode Error', 'not valid response from node')
+            raise JsonRpcError(int(obj['code']), obj['error'])
+        raise JsonRpcError(10000, 'not valid response from node')
     return None
 
 
@@ -108,18 +106,18 @@ class MeterClient(object, metaclass=Singleton):
     async def estimate_gas(self, transaction):
         data = {
             "data": transaction.get("data",'0x'),
-            "value": (encode_number(transaction.get("value", 0))).decode("utf-8"),
+            "value": encode_number(transaction.get("value", 0)),
             "caller": transaction.get("from", None),
         }
         toAddr = transaction.get("to", "0x")
         toAddr = "0x" if toAddr == None else toAddr
         result = await self.accounts(toAddr).make_request(post, data=data)
         if result is None:
-            print("empty response, estimate gas with data:", data)
-            raise JsonRpcError(20000,'Estimate Error', 'no response from server')
+            print("[WARN] empty response, estimate gas with data: ", data)
+            raise JsonRpcError(2, 'no response from server', '')
         if result["reverted"]:
-            print("reverted, estimate gas with data:", data)
-            raise JsonRpcError(20000, 'Estimate Error', result['vmError'])
+            print("[WARN] reverted, estimate gas with data: ", data)
+            raise JsonRpcError(3, result.get('vmError', ''), result.get('data', '0x'))
         return int(result["gasUsed"] * 1.2) + intrinsic_gas(transaction)
 
     async def call(self, transaction, block_identifier):
@@ -128,12 +126,15 @@ class MeterClient(object, metaclass=Singleton):
         }
         data = {
             "data": transaction.get("data", "0x"),
-            "value": (encode_number(transaction.get("value", 0))).decode("utf-8"),
+            "value": encode_number(transaction.get("value", 0)),
             "caller": transaction.get("from", None),
         }
         result = await self.accounts(transaction.get("to", None)).make_request(
             post, data=data, params=params)
-        return _attribute(result, "data")
+        if result["reverted"]:
+            print("[WARN] reverted, eth_call with data: ", data)
+            raise JsonRpcError(3, result.get('vmError', ''), result.get('data', '0x'))
+        return _attribute(result, 'data')
 
     async def send_transaction(self, transaction):
         chain_tag = int((await meter.get_block(0))["hash"][-2:], 16)

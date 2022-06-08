@@ -16,7 +16,6 @@ import logging, logging.config
 from .log import  LOGGING_CONFIG
 
 from .utils.types import (
-
     encode_number
 )
 from .meter.client import meter
@@ -142,9 +141,9 @@ async def run_event_observer(endpoint):
                             logger.info('not match filter, skip now for key %s', key)
                             continue
                         result = meter_log_convert_to_eth_log(log)
-                        result['logIndex'] = result['logIndex'].decode('utf-8')
-                        result['transactionIndex'] = result['transactionIndex'].decode('utf-8')
-                        result['blockNumber'] = result['blockNumber'].decode('utf-8')
+                        result['logIndex'] = result['logIndex']
+                        result['transactionIndex'] = result['transactionIndex']
+                        result['blockNumber'] = result['blockNumber']
                         try:
                             out = json.dumps({"jsonrpc": "2.0", "method":"eth_subscription" ,"params":{"subscription":SUB_ID, "result":result}})
                             await ws.send_str(out)
