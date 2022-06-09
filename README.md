@@ -8,7 +8,7 @@ Proxy [Meter](https://github.com/meterio/meter-pos)'s RESTful API to Eth JSON-RP
 
 ### On OS X
 
-* Python 3.7+ support
+* Python 3.8+ support
 
 1. Install the system-dependecies
 
@@ -26,7 +26,7 @@ Proxy [Meter](https://github.com/meterio/meter-pos)'s RESTful API to Eth JSON-RP
 
 ### On Ubuntu
 
-* Python 3.7+ support
+* Python 3.8+ support
 
 1. Install the system-dependecies
 
@@ -58,7 +58,7 @@ See https://docs.python.org/3/library/venv.html for more information
 
 ### On Windows
 
-* Python 3.7+ support
+* Python 3.8+ support
 
 1. Install Visual C++ Build Tools.
 
