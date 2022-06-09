@@ -1,3 +1,4 @@
+from email.header import decode_header
 import rlp
 import uuid
 # import random
@@ -7,6 +8,8 @@ from gear.utils.types import (
     encode_hex,
     strip_0x
 )
+from eth_abi import decode_abi
+from eth_utils import decode_hex
 from gear.utils.compat import (
     meter_block_convert_to_eth_block,
     meter_receipt_convert_to_eth_receipt,
@@ -22,6 +25,9 @@ from .request import (
     post,
 )
 from jsonrpcserver import JsonRpcError
+
+ERROR_SELECTOR = '0x08c379a0'
+PANIC_SELECTOR = '0x4e487b71'
 
 def _attribute(obj, key): 
     if obj:
@@ -117,7 +123,15 @@ class MeterClient(object, metaclass=Singleton):
             raise JsonRpcError(2, 'no response from server', '')
         if result["reverted"]:
             print("[WARN] reverted, estimate gas with data: ", data)
-            raise JsonRpcError(3, result.get('vmError', ''), result.get('data', '0x'))
+            data = result.get('data', '0x')
+            err = result.get('vmError', '')
+            if data.startswith(ERROR_SELECTOR):
+                decoded = decode_abi(['string'], bytes.fromhex(data[10:]))
+                err += ': '+decoded[0]
+            if data.startswith(PANIC_SELECTOR):
+                decoded = decode_abi(['uint256'], bytes.fromhex(data[10:]))
+                err += ': '+str(decoded[0])
+            raise JsonRpcError(3, err, data)
         return int(result["gasUsed"] * 1.2) + intrinsic_gas(transaction)
 
     async def call(self, transaction, block_identifier):
@@ -133,7 +147,15 @@ class MeterClient(object, metaclass=Singleton):
             post, data=data, params=params)
         if result["reverted"]:
             print("[WARN] reverted, eth_call with data: ", data)
-            raise JsonRpcError(3, result.get('vmError', ''), result.get('data', '0x'))
+            data = result.get('data', '0x')
+            err = result.get('vmError', '')
+            if data.startswith(ERROR_SELECTOR):
+                decoded = decode_abi(['string'], bytes.fromhex(data[10:]))
+                err += ': '+decoded[0]
+            if data.startswith(PANIC_SELECTOR):
+                decoded = decode_abi(['uint256'], bytes.fromhex(data[10:]))
+                err += ': '+str(decoded[0])
+            raise JsonRpcError(3, err, data)
         return _attribute(result, 'data')
 
     async def send_transaction(self, transaction):

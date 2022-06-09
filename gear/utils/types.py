@@ -1,12 +1,12 @@
+import re
 import codecs
 import functools
-from eth_utils import is_hex
-from rlp.utils import (
+from eth_utils import (
     big_endian_to_int,
+    is_hex,
     encode_hex,
     decode_hex as _decode_hex,
 )
-import re
 
 
 def bytearray_to_bytestr(value):
