@@ -1,0 +1,24 @@
+version: 2.1
+jobs:
+  pypi_publish:
+    docker:
+      - image: circleci/python:3.9
+    steps:
+      - checkout  # checkout source code to working directory
+      - run:
+          command: |  # create whl, install twine and publish to PyPI
+            python setup.py sdist bdist_wheel
+            sudo pip install pipenv
+            pipenv install twine
+            pipenv run twine upload dist/*
+workflows:
+  publish:
+    jobs:
+      - pypi_publish:
+          context: pypi-credential
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only:
+                - master
