@@ -9,7 +9,6 @@ from rlp.sedes import (
 )
 from .keystore import sha3
 from .types import (
-    bytearray_to_bytestr,
     decode_hex,
     encode_hex,
     encode_number
@@ -256,7 +255,9 @@ TX_DATA_NON_ZERO_GAS = 68
 def data_gas(data):
     if data is None:
         return 0
-    data = decode_hex(data)
+    if data.startswith('0x'):
+        data = data[2:]
+    data = bytes.fromhex(data)
     if len(data) == 0:
         return 0
     z = 0

@@ -9,7 +9,6 @@ from gear.utils.types import (
     strip_0x
 )
 from eth_abi import decode_abi
-from eth_utils import decode_hex
 from gear.utils.compat import (
     meter_block_convert_to_eth_block,
     meter_receipt_convert_to_eth_receipt,
