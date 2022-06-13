@@ -156,22 +156,26 @@ def meter_tx_convert_to_eth_tx(tx):
         s = tx["ethTx"]["s"]
         v = tx["ethTx"]["v"]
 
-    return {
-        "hash": tx["id"],
-        "nonce": tx["nonce"],
-        "blockHash": tx["meta"]["blockID"],
-        "blockNumber": encode_number(tx["meta"]["blockNumber"]),
-        "transactionIndex": encode_number(0),
-        "from": tx["origin"],
-        "to": tx["clauses"][0]["to"],
-        "value": tx["clauses"][0]["value"],
-        "gas": encode_number(tx["gas"]),
-        "gasPrice": encode_number(1),
-        "input": tx["clauses"][0]["data"],
-        "r": r,
-        "s": s,
-        "v": v,
-    }
+    try:
+        res = {
+            "hash": tx["id"],
+            "nonce": tx["nonce"],
+            "blockHash": tx["meta"]["blockID"],
+            "blockNumber": encode_number(tx["meta"]["blockNumber"]),
+            "transactionIndex": encode_number(0),
+            "from": tx["origin"],
+            "to": tx["clauses"][0]["to"],
+            "value": tx["clauses"][0]["value"],
+            "gas": encode_number(tx["gas"]),
+            "gasPrice": encode_number(1),
+            "input": tx["clauses"][0]["data"],
+            "r": r,
+            "s": s,
+            "v": v,
+        }
+        return res
+    except Exception as e:
+        print("ERROR: ", e)
 
 
 #

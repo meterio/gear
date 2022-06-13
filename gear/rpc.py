@@ -267,8 +267,8 @@ async def eth_getBlockByNumber(block_number, full_tx=False):
 async def get_block(block_identifier, full_tx):
     blk = await meter.get_block(normalize_block_identifier(block_identifier))
     if blk and full_tx:
-        blk["transactions"] = [await eth_getTransactionByHash(
-            tx) for tx in blk["transactions"]]
+        blk["transactions"] = [await meter.get_transaction_by_hash(
+            tx_hash) for tx_hash in blk["transactions"]]
     return blk
 
 
