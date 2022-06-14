@@ -166,9 +166,9 @@ async def handleTextRequest(reqText, protocol):
     try:
         jreq = json.loads(reqText)
         id = jreq[0].get('id', -1) if isinstance(jreq, list) else jreq.get('id',-1)
-        logger.info("%s Req #%d: %s", protocol, id, reqText)
+        logger.info("%s Req #%s: %s", protocol, str(id), reqText)
         res = await async_dispatch(json.dumps(jreq))
-        logger.info("%s Res #%d: %s", protocol, id, res)
+        logger.info("%s Res #%s: %s", protocol, str(id), res)
         return res
     except JSONDecodeError as e:
         return None
