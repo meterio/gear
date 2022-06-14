@@ -171,7 +171,7 @@ def decode_hex(value):
 def normalize_number(value):
     if is_numeric(value):
         return value
-    elif is_numeric_str:
+    elif is_numeric_str(value):
         return int(value, 10)
     elif is_hex_str(value):
         return int(value, 16)
