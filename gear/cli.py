@@ -160,7 +160,7 @@ async def run_event_observer(endpoint):
 async def checkHealth():
     r = {"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":8545}
     res = await handleTextRequest(json.dumps(r), 'Health')
-    return web.Response(text=res, content_type="application/json")
+    return web.Response(text=res, content_type="application/json", headers=res_headers)
 
 async def handleTextRequest(reqText, protocol):
     try:
