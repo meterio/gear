@@ -1,4 +1,4 @@
-from jsonrpcserver import async_dispatch
+from jsonrpcserver import Error, async_dispatch
 import json
 import asyncio
 import websockets
@@ -204,9 +204,13 @@ async def websocket_handler(request):
                 
                 id = jreq['id']
                 method = jreq['method']
-                params = jreq['params']
+                params = jreq.get('params', [])
             except TypeError as e:
                 logger.warning('ws: json decode error but ignored for input: %s', msg.data)
+                continue
+            except Exception as e:
+                logger.warning('ws: got message %s but cant handle due to:', msg.data)
+                logger.error(e)
                 continue
 
             if method == "eth_subscribe":
