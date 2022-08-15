@@ -5,7 +5,7 @@ from aiohttp.client_exceptions import ContentTypeError
 async def post(endpoint_uri, data, **kwargs):
     async with aiohttp.ClientSession() as session:
         async with session.post(endpoint_uri, json=data, **kwargs) as response:
-            # print("Raw response from server: ", response.status, await response.text())
+            print("Raw response from server: ", response.status, await response.text())
             ctype = response.headers['Content-Type']
             expect = "text/plain"
             if expect in ctype:
@@ -18,7 +18,7 @@ async def post(endpoint_uri, data, **kwargs):
 async def get(endpoint_uri, params, **kwargs):
     async with aiohttp.ClientSession() as session:
         async with session.get(endpoint_uri, params=params, **kwargs) as response:
-            # print("Raw response from server: ", response.status,  await response.text())
+            print("Raw response from server: ", response.status,  await response.text())
             ctype = response.headers['Content-Type']
             expect = "text/plain"
             if expect in ctype:
@@ -64,5 +64,6 @@ class Restful(object):
             text = await response.text()
             errResponse = {"error": text.strip('\n'), "code":-2}
         except Exception as e:
+            print('EXCEPTION:',e)
             errResponse = {"error":str(e), "code":-3}
         return errResponse

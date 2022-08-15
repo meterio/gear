@@ -219,7 +219,7 @@ class MeterClient(object, metaclass=Singleton):
 
     async def get_logs(self, address, query):
         result = []
-        step = 100
+        step = 10
         if isinstance(address, list) and len(address) > step:
             while len(address)>0:
                 result.extend(await self.get_logs_bounded(address[:step],query))

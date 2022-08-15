@@ -161,7 +161,7 @@ async def eth_getTransactionCount(address, block_identifier="best"):
 @method
 async def eth_accounts():
     accounts = meter.get_accounts()
-    return accounts
+    return Success(accounts)
 
 
 @method

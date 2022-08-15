@@ -113,6 +113,8 @@ def meter_receipt_log_convert_to_eth_log(receipt, index, log):
 
 def meter_log_convert_to_eth_log(logs):
     if logs and isinstance(logs,list):
+        for log in logs:
+            print("LOG: ", log)
         return [
             {
                 "address": log["address"],
@@ -129,6 +131,7 @@ def meter_log_convert_to_eth_log(logs):
             for index, log in enumerate(logs)
         ]
     if logs and isinstance(logs, object):
+        print('LOG:', logs)
         return {
             "address": logs["address"],
             "logIndex": encode_number(logs["logIndex"]),
