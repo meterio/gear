@@ -169,6 +169,8 @@ def decode_hex(value):
 
 
 def normalize_number(value):
+    if value is None:
+        return 0
     if is_numeric(value):
         return value
     elif is_numeric_str(value):
