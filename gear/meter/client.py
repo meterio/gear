@@ -125,8 +125,21 @@ class MeterClient(object, metaclass=Singleton):
             data = result.get('data', '0x')
             err = result.get('vmError', '')
             if data.startswith(ERROR_SELECTOR):
-                decoded = decode_abi(['string'], bytes.fromhex(data[10:]))
-                err += ': '+decoded[0]
+                try:
+                    decoded = decode_abi(['string'], bytes.fromhex(data[10:]))
+                    err += ': '+decoded[0]
+                except Exception:
+                    # monkey patch for undecodable error data
+                    print("could not decode data, try monkey patch", data[10:])
+                    raw = data[10:]
+                    i=len(raw) -1
+                    for i in range(len(raw)-1, 0, -2):
+                        if raw[i] == '0' and raw[i-1] == '0':
+                            break
+                    raw = raw[:i] + '0'*len(raw[i:])
+                    decoded = decode_abi(['string'], bytes.fromhex(raw))
+                    err += ': '+decoded[0]
+
             if data.startswith(PANIC_SELECTOR):
                 decoded = decode_abi(['uint256'], bytes.fromhex(data[10:]))
                 err += ': '+str(decoded[0])
@@ -149,8 +162,20 @@ class MeterClient(object, metaclass=Singleton):
             data = result.get('data', '0x')
             err = result.get('vmError', '')
             if data.startswith(ERROR_SELECTOR):
-                decoded = decode_abi(['string'], bytes.fromhex(data[10:]))
-                err += ': '+decoded[0]
+                try:
+                    decoded = decode_abi(['string'], bytes.fromhex(data[10:]))
+                    err += ': '+decoded[0]
+                except Exception:
+                    # monkey patch for undecodable error data
+                    print("could not decode data, try monkey patch", data[10:])
+                    raw = data[10:]
+                    i=len(raw) -1
+                    for i in range(len(raw)-1, 0, -2):
+                        if raw[i] == '0' and raw[i-1] == '0':
+                            break
+                    raw = raw[:i] + '0'*len(raw[i:])
+                    decoded = decode_abi(['string'], bytes.fromhex(raw))
+                    err += ': '+decoded[0]
             if data.startswith(PANIC_SELECTOR):
                 decoded = decode_abi(['uint256'], bytes.fromhex(data[10:]))
                 err += ': '+str(decoded[0])
