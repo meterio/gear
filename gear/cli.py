@@ -111,16 +111,15 @@ def match_filter(log, filters):
                     if len(log['topics']) >= index+1 and topic == log['topics'][index]:
                         indexMatch.append(True)
                     else:
-                        topicsMatch = False
-                elif isinstance(topic, list):
-                    indexMatch = False
-                    for t in topic:
-                        if len(log['topics']) >= index+1 and t == log['topics'][index]:
-                            indexMatch.append(True)
-                            break
-                    else:
-                        # didnt find match topic
                         indexMatch.append(False)
+                elif isinstance(topic, list):
+                    for ti, t in enumerate(topic):
+                        if t is None:
+                            indexMatch.append(True)
+                        elif len(log['topics']) >= ti+1 and t == log['topics'][ti]:
+                            indexMatch.append(True)
+                        else:
+                            indexMatch.append(False)
                 else:
                     indexMatch.append(False)
             topicsMatch = all(indexMatch)
