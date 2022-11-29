@@ -2,10 +2,11 @@ import aiohttp
 # import json
 from aiohttp.client_exceptions import ContentTypeError
 
+
 async def post(endpoint_uri, data, **kwargs):
     async with aiohttp.ClientSession() as session:
         async with session.post(endpoint_uri, json=data, **kwargs) as response:
-            print("Raw response from server: ", response.status, await response.text())
+            # print("Raw response from server: ", response.status, await response.text())
             ctype = response.headers['Content-Type']
             expect = "text/plain"
             if expect in ctype:
@@ -15,10 +16,11 @@ async def post(endpoint_uri, data, **kwargs):
                 await response.json()
                 return response
 
+
 async def get(endpoint_uri, params, **kwargs):
     async with aiohttp.ClientSession() as session:
         async with session.get(endpoint_uri, params=params, **kwargs) as response:
-            print("Raw response from server: ", response.status,  await response.text())
+            # print("Raw response from server: ", response.status, await response.text())
             ctype = response.headers['Content-Type']
             expect = "text/plain"
             if expect in ctype:
@@ -27,6 +29,7 @@ async def get(endpoint_uri, params, **kwargs):
             else:
                 await response.json()
                 return response
+
 
 class Restful(object):
 
@@ -51,7 +54,7 @@ class Restful(object):
         kwargs.setdefault('headers', headers)
         kwargs.setdefault('timeout', 18)
         kwargs.setdefault('chunked', True)
-        errResponse = {"error": "", "code":0}
+        errResponse = {"error": "", "code": 0}
         try:
             response = await method(self._endpoint, params=params, data=data, **kwargs)
             # print("RESPONSE: ", response)
@@ -59,11 +62,11 @@ class Restful(object):
             return await response.json()
         except aiohttp.ClientConnectionError as e:
             print("Unable to connect to Meter-Restful server:", e)
-            errResponse = {"error": "meter node is not running", "code":-1}
+            errResponse = {"error": "meter node is not running", "code": -1}
         except ContentTypeError as e:
             text = await response.text()
-            errResponse = {"error": text.strip('\n'), "code":-2}
+            errResponse = {"error": text.strip('\n'), "code": -2}
         except Exception as e:
-            print('EXCEPTION:',e)
-            errResponse = {"error":str(e), "code":-3}
+            print('EXCEPTION:', e)
+            errResponse = {"error": str(e), "code": -3}
         return errResponse

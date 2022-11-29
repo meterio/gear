@@ -144,6 +144,9 @@ class MeterClient(object, metaclass=Singleton):
                 decoded = decode_abi(['uint256'], bytes.fromhex(data[10:]))
                 err += ': '+str(decoded[0])
             raise JsonRpcError(3, err, data)
+        print(result)
+        print(result['gasUsed'])
+        print('intrinsic gas: ', intrinsic_gas(transaction))
         return int(result["gasUsed"] * 1.2) + intrinsic_gas(transaction)
 
     async def call(self, transaction, block_identifier):
