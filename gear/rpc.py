@@ -220,6 +220,15 @@ async def eth_sign(transaction):
 
 
 @method
+async def eth_getBlockTransactionCountByNumber(block_number):
+    '''
+    returns
+    result - The number of transactions in a specific block represented in hexadecimal format
+    '''
+    res = await get_block_tx_count(block_number)
+    return Success(res)
+
+@method
 async def eth_sendRawTransaction(raw):
     '''
     发送已签名的交易
@@ -270,6 +279,10 @@ async def get_block(block_identifier, full_tx):
         blk["transactions"] = [await meter.get_transaction_by_hash(
             tx_hash) for tx_hash in blk["transactions"]]
     return blk
+
+async def get_block_tx_count(block_identifier):
+    blk = await meter.get_block(normalize_block_identifier(block_identifier))
+    return len(blk['transactions']) 
 
 
 @method
