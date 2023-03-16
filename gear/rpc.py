@@ -161,7 +161,8 @@ async def eth_getTransactionCount(address, block_identifier="best"):
 @method
 async def eth_accounts():
     accounts = meter.get_accounts()
-    return Success(accounts)
+    # return Success(accounts)
+    return Success([])
 
 
 @method
@@ -252,6 +253,38 @@ async def eth_getTransactionByHash(tx_hash):
         return Success(res)
     return Success(None)
 
+@method
+async def eth_getTransactionByBlockNumberAndIndex(blockNum, index):
+    if blockNum:
+        res = await meter.get_block(blockNum)
+        if "transactions" in res:
+            if len(res['transactions']) > int(index):
+                txHash = res['transactions'][index]
+                res = await meter.get_transaction_by_hash(txHash)
+                return Success(res)
+            else:
+                return Error(100, "index out of bound")
+        else:
+            return Error(200, "no transactions found in block")
+    else:
+        return Error(300, "block number is required")
+        
+@method
+async def eth_getTransactionByBlockHashAndIndex(blockHash, index):
+    if blockHash:
+        res = await meter.get_block(blockHash)
+        if "transactions" in res:
+            if len(res['transactions']) > int(index):
+                txHash = res['transactions'][index]
+                res = await meter.get_transaction_by_hash(txHash)
+                return Success(res)
+            else:
+                return Error(100, "index out of bound")
+        else:
+            return Error(200, "no transactions found in block")
+    else:
+        return Error(300, "block hash is required")
+ 
 
 @method
 async def eth_getTransactionReceipt(tx_hash):

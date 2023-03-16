@@ -123,8 +123,10 @@ class MeterClient(object, metaclass=Singleton):
         if result is None:
             print("[WARN] empty response, estimate gas with data: ", data)
             raise JsonRpcError(2, 'no response from server', '')
-        print(result)
-        if result["reverted"]:
+        if 'error' in result and result['error']:
+            print("[WARN] estimate_gas error: ", result['error'])
+            raise JsonRpcError(result['code'], result['error'])
+        if 'reverted' in result and result["reverted"]:
             print("[WARN] reverted, estimate gas with data: ", data)
             data = result.get('data', '0x')
             err = result.get('vmError', '')
@@ -161,7 +163,10 @@ class MeterClient(object, metaclass=Singleton):
         }
         result = await self.accounts(transaction.get("to", None)).make_request(
             post, data=data, params=params)
-        if result["reverted"]:
+        if 'error' in result and result['error']:
+            print("[WARN] eth_call error: ", result['error'])
+            raise JsonRpcError(result['code'], result['error'])
+        if 'reverted' in result and result["reverted"]:
             print("[WARN] reverted, eth_call with data: ", data)
             data = result.get('data', '0x')
             err = result.get('vmError', '')
