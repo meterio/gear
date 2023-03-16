@@ -20,26 +20,26 @@ LOGGING_CONFIG = {
             'level': 'INFO',
             'propagate': False
         },
-        'aiohttp.access': { 
-            'handlers': ['default'],
-            'level': 'INFO',
-            'propagate': False
-        },
-        'aiohttp.web': { 
-            'handlers': ['default'],
-            'level': 'INFO',
-            'propagate': False
-        },
-        'aiohttp.client': { 
-            'handlers': ['default'],
-            'level': 'INFO',
-            'propagate': False
-        },
-        'aiohttp.server': { 
-            'handlers': ['default'],
-            'level': 'INFO',
-            'propagate': False
-        },
+        # 'aiohttp.access': { 
+        #     'handlers': ['default'],
+        #     'level': 'INFO',
+        #     'propagate': False
+        # },
+        # 'aiohttp.web': { 
+        #     'handlers': ['default'],
+        #     'level': 'INFO',
+        #     'propagate': False
+        # },
+        # 'aiohttp.client': { 
+        #     'handlers': ['default'],
+        #     'level': 'INFO',
+        #     'propagate': False
+        # },
+        # 'aiohttp.server': { 
+        #     'handlers': ['default'],
+        #     'level': 'INFO',
+        #     'propagate': False
+        # },
         '__main__': {  # if __name__ == '__main__'
             'handlers': ['default'],
             'level': 'DEBUG',
