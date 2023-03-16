@@ -170,11 +170,11 @@ async def run_event_observer(endpoint):
 
 async def checkHealth():
     r = {"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 8545}
-    res = await handleTextRequest(json.dumps(r), 'Health')
+    res = await handleTextRequest(json.dumps(r), 'Health', 'local')
     return web.Response(text=res, content_type="application/json", headers=res_headers)
 
 
-async def handleTextRequest(reqText, protocol):
+async def handleTextRequest(reqText, protocol, remoteIP):
     try:
         jreq = json.loads(reqText)
         id = jreq[0].get('id', -1) if isinstance(jreq,
@@ -182,7 +182,7 @@ async def handleTextRequest(reqText, protocol):
         method = jreq[0].get('method', 'unknown') if isinstance(jreq,
                                                                 list) else jreq.get('method', 'unknown')
 
-        logger.info("%s Req #%s: %s", protocol, str(id), reqText)
+        logger.info("%s Req #%s from %s: %s", protocol, str(id), remoteIP, reqText)
         res = await async_dispatch(json.dumps(jreq))
         if method == 'eth_call':
             logger.info("%s Res #%s: %s", protocol, str(id), '[hidden]')
@@ -195,7 +195,7 @@ async def handleTextRequest(reqText, protocol):
 
 async def http_handler(request):
     req = await request.text()
-    res = await handleTextRequest(req, 'HTTP')
+    res = await handleTextRequest(req, 'HTTP', request.remote)
     if res is not None:
         return web.Response(text=res, content_type="application/json", headers=res_headers)
 
@@ -280,7 +280,7 @@ async def websocket_handler(request):
                 await ws.close()
             else:
                 # handle normal requests
-                res = await handleTextRequest(msg.data, 'WS')
+                res = await handleTextRequest(msg.data, 'WS', request.remote)
                 logger.info("forward response to ws %s", key)
                 await ws.send_str(res)
 

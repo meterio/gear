@@ -116,10 +116,14 @@ class MeterClient(object, metaclass=Singleton):
         }
         toAddr = transaction.get("to", "0x")
         toAddr = "0x" if toAddr == None else toAddr
+        if len(toAddr) != 2 and len(toAddr) != 42:
+            raise JsonRpcError(4, 'invalid to address', toAddr)
+
         result = await self.accounts(toAddr).make_request(post, data=data)
         if result is None:
             print("[WARN] empty response, estimate gas with data: ", data)
             raise JsonRpcError(2, 'no response from server', '')
+        print(result)
         if result["reverted"]:
             print("[WARN] reverted, estimate gas with data: ", data)
             data = result.get('data', '0x')
@@ -144,9 +148,6 @@ class MeterClient(object, metaclass=Singleton):
                 decoded = decode_abi(['uint256'], bytes.fromhex(data[10:]))
                 err += ': '+str(decoded[0])
             raise JsonRpcError(3, err, data)
-        print(result)
-        print(result['gasUsed'])
-        print('intrinsic gas: ', intrinsic_gas(transaction))
         return int(result["gasUsed"] * 1.2) + intrinsic_gas(transaction)
 
     async def call(self, transaction, block_identifier):
