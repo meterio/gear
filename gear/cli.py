@@ -184,7 +184,7 @@ async def handleTextRequest(reqText, protocol, remoteIP):
 
         logger.info("%s Req #%s from %s: %s", protocol, str(id), remoteIP, reqText)
         res = await async_dispatch(json.dumps(jreq))
-        if method == 'eth_call':
+        if method == 'eth_call' or method == 'eth_getBlockByNumber':
             logger.info("%s Res #%s: %s", protocol, str(id), '[hidden]')
         else:
             logger.info("%s Res #%s: %s", protocol, str(id), res)
