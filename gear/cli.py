@@ -40,6 +40,7 @@ SUB_ID = '0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827'
 
 newHeadListeners = {}  # ws connection id -> ws connection
 logListeners = {}  # ws connection id -> { ws: ws connection, filters: filters }
+receiptListeners = {} # txHash -> {ws: ws connection, id: rpcID, connID: ws connection id}
 # WSURL_NHEADS = 'ws://127.0.0.1:8669/subscriptions/beat'
 
 
@@ -131,6 +132,27 @@ def match_filter(log, filters):
     return False
 
 
+async def run_tx_observer():
+    while True:
+        for key in receiptListeners:
+            try:
+                info = receiptListeners[key]
+                ws = info['ws']
+                id = info['id']
+                connID = info['connID']
+                r = await meter.get_transaction_receipt(key)
+                if r:
+                    logger.info("forward receipt to ws %s", connID)
+                    out = json.dumps({"jsonrpc": "2.0", "method": "eth_subscription", "result":r, "id":id})
+                    await ws.send_str(out)
+                    del receiptListeners[key]
+            except Exception as e:
+                del receiptListeners[key]
+                logger.error('error happend: %s for client receipt ws: %s ', e, key) 
+        await asyncio.sleep(1)
+
+
+                    
 async def run_event_observer(endpoint):
     ws_endpoint = endpoint.replace('https', 'ws').replace(
         'http', 'ws')+'/subscriptions/event'
@@ -278,6 +300,18 @@ async def websocket_handler(request):
                     del logListeners[key]
                 logger.info("UNSUBSCRIBE: %s", key)
                 await ws.close()
+            elif (method == 'eth_getTransactionReceipt'):
+                # handle tx receipt
+                res = await handleTextRequest(msg.data, 'WS', request.remote)
+                if res and json.loads(res)['result']:
+                    logger.info("forward response to ws %s", key)
+                    await ws.send_str(res)
+                else:
+                    req = json.loads(msg.data)
+                    txHash = req['params'][0]
+                    id = req['id']
+                    receiptListeners[txHash] = {"ws":ws, "connID":key, "id":id}
+                    logger.info("WAITING FOR RECEIPT: %s, conn:%s, id:%s", txHash, key, id)
             else:
                 # handle normal requests
                 res = await handleTextRequest(msg.data, 'WS', request.remote)
@@ -333,6 +367,7 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
     await ws.start()
     logger.info("Websocket server started: ws://%s:%s", host, int(port)+1)
 
+    asyncio.create_task(run_tx_observer())
     asyncio.create_task(run_new_head_observer(endpoint))
     asyncio.create_task(run_event_observer(endpoint))
     await asyncio.Event().wait()
