@@ -30,7 +30,10 @@ def input_transaction_formatter(transaction):
 
 def input_log_filter_formatter(filter_params):
     params_range = {"unit": "block"}
-    params_range["from"] = int(filter_params["fromBlock"], 16)
+    from_blk = filter_params.get("fromBlock", None)
+    if from_blk:
+        params_range["from"] = int(from_blk, 16)
+    # params_range["from"] = int(filter_params["fromBlock"], 16)
     to_blk = filter_params.get("toBlock", None)
     if to_blk:
         params_range["to"] = int(to_blk, 16)
@@ -339,9 +342,12 @@ async def eth_getFilterChanges(filter_id):
 @method
 async def eth_getLogs(filter_obj):
     to_blk = filter_obj.get('toBlock', None)
+    latest = await meter.get_block('best')
     if (to_blk == 'latest'):
-        latest = await meter.get_block('best')
         filter_obj['toBlock'] = latest['number']
+    from_blk = filter_obj.get('fromBlock', None)
+    if (from_blk == 'latest'):
+        filter_obj['fromBlock'] = latest['number']
     return Success(await meter.get_logs(filter_obj.get("address", None), input_log_filter_formatter(filter_obj)))
 
 @method
