@@ -259,10 +259,15 @@ async def eth_getTransactionByHash(tx_hash):
 @method
 async def eth_getTransactionByBlockNumberAndIndex(blockNum, index):
     if blockNum:
+        formattedIndex = 0
+        try:
+            formattedIndex = int(index)
+        except:
+            formattedIndex = int(index, 16)
         res = await meter.get_block(blockNum)
         if "transactions" in res:
-            if len(res['transactions']) > int(index):
-                txHash = res['transactions'][index]
+            if len(res['transactions']) > formattedIndex:
+                txHash = res['transactions'][formattedIndex]
                 res = await meter.get_transaction_by_hash(txHash)
                 return Success(res)
             else:
