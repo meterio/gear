@@ -319,6 +319,8 @@ async def get_block(block_identifier, full_tx):
     if blk and full_tx:
         blk["transactions"] = [await meter.get_transaction_by_hash(
             tx_hash) for tx_hash in blk["transactions"]]
+    if 'baseFeePerGas' not in blk:
+        blk['baseFeePerGas'] = '0x746a528800'
     return blk
 
 async def get_block_tx_count(block_identifier):
