@@ -217,7 +217,10 @@ async def handleTextRequest(reqText, protocol, remoteIP):
 
 async def http_handler(request):
     req = await request.text()
-    res = await handleTextRequest(req, 'HTTP', request.remote)
+    remoteIP = request.remote
+    if 'X-Forwarded-For' in request.headers:
+        remoteIP = request.headers['X-Forwarded-For'] 
+    res = await handleTextRequest(req, 'HTTP', remoteIP)
     if res is not None:
         return web.Response(text=res, content_type="application/json", headers=res_headers)
 
