@@ -69,7 +69,7 @@ async def run_new_head_observer(endpoint):
                         try:
                             out = json.dumps({"jsonrpc": "2.0", "method": "eth_subscription", "params": {
                                              "subscription": SUB_ID, "result": blk}})
-                            logger.info('res: %s', out)
+                            # logger.info('res: %s', out)
                             await ws.send_str(out)
                         except Exception as e:
                             del newHeadListeners[key]
@@ -207,9 +207,9 @@ async def handleTextRequest(reqText, protocol, remoteIP):
         logger.info("%s Req #%s from %s: %s", protocol, str(id), remoteIP, reqText)
         res = await async_dispatch(json.dumps(jreq))
         if method in ['eth_call', 'eth_getBlockByNumber', 'eth_getBlockByHash', 'eth_getTransactionByHash', 'eth_getTransactionByBlockNumberAndIndex', 'eth_getTransactionByBlockHashAndIndex']:
-            logger.info("%s Res #%s: %s", protocol, str(id), '[hidden]')
+            logger.debug("%s Res #%s: %s", protocol, str(id), '[hidden]')
         else:
-            logger.info("%s Res #%s: %s", protocol, str(id), res)
+            logger.debug("%s Res #%s: %s", protocol, str(id), res)
         return res
     except JSONDecodeError as e:
         return None
