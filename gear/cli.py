@@ -5,6 +5,7 @@ import websockets
 import hashlib
 import aiohttp
 from aiohttp import web
+import time
 
 from gear.utils.compat import meter_log_convert_to_eth_log, meter_block_convert_to_eth_block
 from json.decoder import JSONDecodeError
@@ -132,6 +133,7 @@ def match_filter(log, filters):
     return False
 
 
+
 async def run_tx_observer():
     while True:
         for key in receiptListeners:
@@ -195,6 +197,34 @@ async def checkHealth():
     res = await handleTextRequest(json.dumps(r), 'Health', 'local')
     return web.Response(text=res, content_type="application/json", headers=res_headers)
 
+async def getReqs():
+    res = json.dumps(reqs)
+    return web.Response(text=res, headers=res_headers)
+
+async def getCounter():
+    res = json.dumps(counter)
+    return web.Response(text=res, headers=res_headers)
+
+
+counter = {}
+reqs = []
+RATE_LIMIT_WINDOW = 5*60 # 5min in millis
+RATE_LIMIT = 600 # 600req/5min
+
+async def housekeeping():
+    while True:
+        while len(reqs)>0:
+            now_s = int( time.time_ns() / 1000 / 1000)
+            if reqs[0][0] < now_s - RATE_LIMIT_WINDOW:
+                d = reqs.pop()
+                if d[1] in counter:
+                    counter[d[1]]-=1
+                    if counter[d[1]] == 0:
+                        del counter[d[1]]
+            else:
+                break
+
+        await asyncio.sleep(10)
 
 async def handleTextRequest(reqText, protocol, remoteIP):
     try:
@@ -204,7 +234,16 @@ async def handleTextRequest(reqText, protocol, remoteIP):
         method = jreq[0].get('method', 'unknown') if isinstance(jreq,
                                                                 list) else jreq.get('method', 'unknown')
 
-        logger.info("%s Req #%s from %s: %s", protocol, str(id), remoteIP, reqText)
+        if remoteIP not in counter:
+            counter[remoteIP] = 0
+        counter[remoteIP] += 1
+        now_s = int( time.time_ns() / 1000 / 1000)
+        reqs.append((now_s, remoteIP, method))
+        if (counter[remoteIP] > RATE_LIMIT):
+            logger.info("%s Req #%s [rate-limited] from %s: %s", protocol, str(id), remoteIP, reqText)
+            return json.dumps({"jsonrpc": "2.0", "error": "slow down, you're over the rate limit", "id": id})
+        
+        logger.info("%s Req #%s from %s[%d]: %s", protocol, str(id), remoteIP, counter[remoteIP], reqText)
         res = await async_dispatch(json.dumps(jreq))
         if method in ['eth_call', 'eth_getBlockByNumber', 'eth_getBlockByHash', 'eth_getTransactionByHash', 'eth_getTransactionByBlockNumberAndIndex', 'eth_getTransactionByBlockHashAndIndex']:
             logger.debug("%s Res #%s: %s", protocol, str(id), '[hidden]')
@@ -352,6 +391,8 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
     http_app.router.add_options(
         "/", lambda r: web.Response(headers=res_headers))
     http_app.router.add_get("/health", lambda r: checkHealth())
+    http_app.router.add_get("/reqs", lambda r: getReqs())
+    http_app.router.add_get("/counter", lambda r: getCounter())
 
     ws_app = web.Application()
     ws_app.router.add_get('/', websocket_handler)
@@ -373,6 +414,7 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
     asyncio.create_task(run_tx_observer())
     asyncio.create_task(run_new_head_observer(endpoint))
     asyncio.create_task(run_event_observer(endpoint))
+    asyncio.create_task(housekeeping())
     await asyncio.Event().wait()
 
 
