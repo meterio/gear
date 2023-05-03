@@ -208,13 +208,13 @@ async def getCounter():
 
 counter = {}
 reqs = []
-RATE_LIMIT_WINDOW = 5*60 # 5min in millis
+RATE_LIMIT_WINDOW = 5*60*1000 # 5min in millis
 RATE_LIMIT = 100 # 300req/5min
 
 async def housekeeping():
     while True:
         while len(reqs)>0:
-            now_s = int( time.time_ns() / 1000 / 1000)
+            now_s = int( time.time_ns() / 1e6)
             if reqs[0][0] < now_s - RATE_LIMIT_WINDOW:
                 d = reqs.pop()
                 if d[1] in counter:
@@ -237,7 +237,7 @@ async def handleTextRequest(reqText, protocol, remoteIP):
         if remoteIP not in counter:
             counter[remoteIP] = 0
         counter[remoteIP] += 1
-        now_s = int( time.time_ns() / 1000 / 1000)
+        now_s = int( time.time_ns() / 1e6)
         reqs.append((now_s, remoteIP, method))
         if (counter[remoteIP] > RATE_LIMIT):
             logger.info("%s Req #%s [rate-limited(%s:%s)] from %s: %s", protocol, str(id), str(counter[remoteIP]), str(RATE_LIMIT), remoteIP, reqText)
