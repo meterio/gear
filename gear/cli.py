@@ -209,7 +209,7 @@ async def getCounter():
 counter = {}
 reqs = []
 RATE_LIMIT_WINDOW = 5*60 # 5min in millis
-RATE_LIMIT = 600 # 600req/5min
+RATE_LIMIT = 100 # 300req/5min
 
 async def housekeeping():
     while True:
@@ -240,7 +240,7 @@ async def handleTextRequest(reqText, protocol, remoteIP):
         now_s = int( time.time_ns() / 1000 / 1000)
         reqs.append((now_s, remoteIP, method))
         if (counter[remoteIP] > RATE_LIMIT):
-            logger.info("%s Req #%s [rate-limited] from %s: %s", protocol, str(id), remoteIP, reqText)
+            logger.info("%s Req #%s [rate-limited(%s:%s)] from %s: %s", protocol, str(id), str(counter[remoteIP]), str(RATE_LIMIT), remoteIP, reqText)
             return json.dumps({"jsonrpc": "2.0", "error": "slow down, you're over the rate limit", "id": id})
         
         logger.info("%s Req #%s from %s[%d]: %s", protocol, str(id), remoteIP, counter[remoteIP], reqText)
@@ -370,14 +370,15 @@ async def websocket_handler(request):
     return ws
 
 
-async def run_server(host, port, endpoint, keystore, passcode, log, debug, chainid):
+async def run_server(host, port, endpoint, keystore, passcode, log, debug, chainid, ratelimit):
     try:
         response = requests.options(endpoint)
         response.raise_for_status()
     except requests.exceptions.ConnectionError:
         logger.error("Unable to connect to Meter-Restful server.")
         return
-
+    global RATE_LIMIT
+    RATE_LIMIT = ratelimit
     meter.set_endpoint(endpoint)
     meter.set_chainid(chainid)
     if keystore == "":
@@ -419,48 +420,22 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
 
 
 @click.command()
-@click.option(
-    "--host",
-    default="0.0.0.0",
-)
-@click.option(
-    "--port",
-    default=8545,
-    type=int,
-)
-@click.option(
-    "--endpoint",
-    default="http://127.0.0.1:8669",
-)
-@click.option(
-    "--keystore",
-    default="",
-)
-@click.option(
-    "--passcode",
-    default="",
-)
-@click.option(
-    "--log",
-    default=False,
-    type=bool,
-)
-@click.option(
-    "--debug",
-    default=False,
-    type=bool,
-)
-@click.option(
-    "--chainid",
-    default="0x53"
-)
-def main(host, port, endpoint, keystore, passcode, log, debug, chainid):
+@click.option( "--host", default="0.0.0.0")
+@click.option( "--port", default=8545, type=int)
+@click.option( "--endpoint", default="http://127.0.0.1:8669")
+@click.option( "--keystore", default="")
+@click.option( "--passcode", default="")
+@click.option( "--log", default=False, type=bool)
+@click.option( "--debug", default=False, type=bool)
+@click.option( "--chainid", default="0x53")
+@click.option( "--ratelimit", default=300, type=int)
+def main(host, port, endpoint, keystore, passcode, log, debug, chainid, ratelimit):
     chainIdHex = chainid
     if not chainid.startswith('0x'):
         chainIdHex = hex(int(chainid))
 
     asyncio.run(run_server(host, port, endpoint, keystore,
-                passcode, log, debug, chainIdHex))
+                passcode, log, debug, chainIdHex, ratelimit))
 
 
 if __name__ == '__main__':
