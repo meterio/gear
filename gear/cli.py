@@ -205,22 +205,63 @@ async def getCounter():
     res = json.dumps(counter)
     return web.Response(text=res, headers=res_headers)
 
+async def getCounter():
+    res = json.dumps(credits)
+    return web.Response(text=res, headers=res_headers)
 
 counter = {}
+credits = {}
 reqs = []
 RATE_LIMIT_WINDOW = 5*60*1000 # 5min in millis
-RATE_LIMIT = 100 # 300req/5min
+RATE_LIMIT = 300 # 300req/5min
+CREDIT_LIMIT = 200*1 + 100*5 # 200 regular req, 100 heavy req
+
+def getCredit(method):
+    if method == 'eth_call':
+        return 5
+    elif method == 'eth_getLogs':
+        return 5
+    else:
+        return 1
+
+def addReq(ip, method):
+    ts = int( time.time_ns() / 1e6)
+    global reqs
+    global counter
+    global credits
+    if ip not in counter:
+        counter[ip] = 0
+    if ip not in credits:
+        credits[ip] = 0
+    counter[ip] += 1
+    credits[ip] += getCredit(method)
+    reqs.append((ts, ip, method))
+    if credits[ip]> CREDIT_LIMIT or counter[ip] > RATE_LIMIT:
+        return False # limited
+    return True # normal
+
 
 async def housekeeping():
+    global reqs
+    global counter
+    global credits
     while True:
         while len(reqs)>0:
             now_s = int( time.time_ns() / 1e6)
             if reqs[0][0] < now_s - RATE_LIMIT_WINDOW:
-                d = reqs.pop()
-                if d[1] in counter:
-                    counter[d[1]]-=1
-                    if counter[d[1]] == 0:
-                        del counter[d[1]]
+                d = reqs.pop(0)
+                # ts = d[0]
+                ip = d[1]
+                method = d[2]
+                credit = getCredit(method)
+                if ip in counter:
+                    counter[ip] -= 1
+                    if counter[ip] <= 0:
+                        del counter[ip]
+                if ip in credits:
+                    credits[ip] -= credit
+                    if credits[ip] <= 0:
+                        del credits[ip]
             else:
                 break
 
@@ -234,16 +275,12 @@ async def handleTextRequest(reqText, protocol, remoteIP):
         method = jreq[0].get('method', 'unknown') if isinstance(jreq,
                                                                 list) else jreq.get('method', 'unknown')
 
-        if remoteIP not in counter:
-            counter[remoteIP] = 0
-        counter[remoteIP] += 1
-        now_s = int( time.time_ns() / 1e6)
-        reqs.append((now_s, remoteIP, method))
-        if (counter[remoteIP] > RATE_LIMIT):
-            logger.info("%s Req #%s [rate-limited(%s:%s)] from %s: %s", protocol, str(id), str(counter[remoteIP]), str(RATE_LIMIT), remoteIP, reqText)
+        if not addReq(remoteIP, method):
+            logger.info("%s Req #%s [rate-limited(%d/%d)] from %s: %s", protocol, str(id), counter[remoteIP], credits[remoteIP], remoteIP, reqText)
+            logger.info("RATE_LIMIT=%d, CREDIT_LIMIT=%d", RATE_LIMIT, CREDIT_LIMIT)
             return json.dumps({"jsonrpc": "2.0", "error": "slow down, you're over the rate limit", "id": id})
         
-        logger.info("%s Req #%s from %s[%d]: %s", protocol, str(id), remoteIP, counter[remoteIP], reqText)
+        logger.info("%s Req #%s from %s[%d/%d]: %s", protocol, str(id), remoteIP, counter[remoteIP], credits[remoteIP], reqText)
         res = await async_dispatch(json.dumps(jreq))
         if method in ['eth_call', 'eth_getBlockByNumber', 'eth_getBlockByHash', 'eth_getTransactionByHash', 'eth_getTransactionByBlockNumberAndIndex', 'eth_getTransactionByBlockHashAndIndex']:
             logger.debug("%s Res #%s: %s", protocol, str(id), '[hidden]')
@@ -370,15 +407,13 @@ async def websocket_handler(request):
     return ws
 
 
-async def run_server(host, port, endpoint, keystore, passcode, log, debug, chainid, ratelimit):
+async def run_server(host, port, endpoint, keystore, passcode, log, debug, chainid):
     try:
         response = requests.options(endpoint)
         response.raise_for_status()
     except requests.exceptions.ConnectionError:
         logger.error("Unable to connect to Meter-Restful server.")
         return
-    global RATE_LIMIT
-    RATE_LIMIT = ratelimit
     meter.set_endpoint(endpoint)
     meter.set_chainid(chainid)
     if keystore == "":
@@ -394,6 +429,7 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
     http_app.router.add_get("/health", lambda r: checkHealth())
     http_app.router.add_get("/reqs", lambda r: getReqs())
     http_app.router.add_get("/counter", lambda r: getCounter())
+    http_app.router.add_get("/credits", lambda r: getCredits())
 
     ws_app = web.Application()
     ws_app.router.add_get('/', websocket_handler)
@@ -429,13 +465,18 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
 @click.option( "--debug", default=False, type=bool)
 @click.option( "--chainid", default="0x53")
 @click.option( "--ratelimit", default=300, type=int)
-def main(host, port, endpoint, keystore, passcode, log, debug, chainid, ratelimit):
+@click.option( "--creditlimit", default=200*1+100*5, type=int)
+def main(host, port, endpoint, keystore, passcode, log, debug, chainid, ratelimit, creditlimit):
     chainIdHex = chainid
     if not chainid.startswith('0x'):
         chainIdHex = hex(int(chainid))
 
+    global CREDIT_LIMIT
+    global RATE_LIMIT
+    RATE_LIMIT = ratelimit
+    CREDIT_LIMIT = creditlimit
     asyncio.run(run_server(host, port, endpoint, keystore,
-                passcode, log, debug, chainIdHex, ratelimit))
+                passcode, log, debug, chainIdHex))
 
 
 if __name__ == '__main__':
