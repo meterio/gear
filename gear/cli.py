@@ -6,6 +6,7 @@ import hashlib
 import aiohttp
 from aiohttp import web
 import time
+from lru import LRU
 
 from gear.utils.compat import meter_log_convert_to_eth_log, meter_block_convert_to_eth_block
 from json.decoder import JSONDecodeError
@@ -216,6 +217,9 @@ RATE_LIMIT_WINDOW = 5*60*1000 # 5min in millis
 RATE_LIMIT = 300 # 300req/5min
 CREDIT_LIMIT = 200*1 + 100*5 # 200 regular req, 100 heavy req
 
+bestBlock = None
+cache = LRU(1024)
+
 def getCredit(method):
     if method == 'eth_call':
         return 5
@@ -240,6 +244,19 @@ def addReq(ip, method):
         return False # limited
     return True # normal
 
+async def update_best_block():
+    global bestBlock
+    while True:
+        try:
+            res = await async_dispatch('{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest", false],"id":1}')
+            if res:
+                jsonRes = json.loads(res)
+                bestBlock = jsonRes['result']
+                print('best block updated: ', int(bestBlock['number'], 16), bestBlock['hash'])
+        except:
+            pass
+        finally:
+            await asyncio.sleep(2)
 
 async def housekeeping():
     global reqs
@@ -269,11 +286,19 @@ async def housekeeping():
 
 async def handleTextRequest(reqText, protocol, remoteIP):
     try:
+        global cache
+        stateRoot = ''
+        if bestBlock:
+            stateRoot = bestBlock['stateRoot']
         jreq = json.loads(reqText)
-        id = jreq[0].get('id', -1) if isinstance(jreq,
-                                                 list) else jreq.get('id', -1)
-        method = jreq[0].get('method', 'unknown') if isinstance(jreq,
-                                                                list) else jreq.get('method', 'unknown')
+        id = jreq[0].get('id', -1) if isinstance(jreq, list) else jreq.get('id', -1)
+        method = jreq[0].get('method', 'unknown') if isinstance(jreq, list) else jreq.get('method', 'unknown')
+        params = jreq[0].get('params', 'unknown')  if isinstance(jreq, list) else jreq.get('params', 'unknown')
+
+        key = stateRoot+str(method)+str(params)
+        if cache.has_key(key) and method != 'eth_getBlockByNumber':
+            logger.info("%s Req #%s from %s[%d/%d] served in cache: %s", protocol, str(id), remoteIP, counter[remoteIP], credits[remoteIP], reqText)
+            return cache[key]
 
         if not addReq(remoteIP, method):
             logger.info("%s Req #%s [rate-limited(%d/%d)] from %s: %s", protocol, str(id), counter[remoteIP], credits[remoteIP], remoteIP, reqText)
@@ -286,9 +311,16 @@ async def handleTextRequest(reqText, protocol, remoteIP):
             logger.debug("%s Res #%s: %s", protocol, str(id), '[hidden]')
         else:
             logger.debug("%s Res #%s: %s", protocol, str(id), res)
+        cache[key] = res
         return res
     except JSONDecodeError as e:
+        print(e)
         return None
+    except Error as e:
+        print(e)
+    except Exception as e:
+        print(e)
+
 
 
 async def http_handler(request):
@@ -452,6 +484,7 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
     asyncio.create_task(run_new_head_observer(endpoint))
     asyncio.create_task(run_event_observer(endpoint))
     asyncio.create_task(housekeeping())
+    asyncio.create_task(update_best_block())
     await asyncio.Event().wait()
 
 
