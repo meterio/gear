@@ -252,7 +252,7 @@ async def update_best_block():
             if res:
                 jsonRes = json.loads(res)
                 bestBlock = jsonRes['result']
-                print('best block updated: ', int(bestBlock['number'], 16), bestBlock['hash'])
+                logger.info("best block updated to %d %s", int(bestBlock['number'], 16), bestBlock['hash'])
         except:
             pass
         finally:
@@ -296,7 +296,7 @@ async def handleTextRequest(reqText, protocol, remoteIP):
         params = jreq[0].get('params', 'unknown')  if isinstance(jreq, list) else jreq.get('params', 'unknown')
 
         key = stateRoot+str(method)+str(params)
-        if cache.has_key(key) and method != 'eth_getBlockByNumber':
+        if cache.has_key(key) and method != 'eth_getBlockByNumber' and method !='eth_blockNumber':
             logger.info("%s Req #%s from %s[%d/%d] served in cache: %s", protocol, str(id), remoteIP, counter[remoteIP], credits[remoteIP], reqText)
             return cache[key]
 
