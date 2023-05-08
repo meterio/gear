@@ -206,13 +206,14 @@ async def getCounter():
     res = json.dumps(counter)
     return web.Response(text=res, headers=res_headers)
 
-async def getCounter():
+async def getCredits():
     res = json.dumps(credits)
     return web.Response(text=res, headers=res_headers)
 
 counter = {}
 credits = {}
 reqs = []
+THROTTLED = False
 RATE_LIMIT_WINDOW = 5*60*1000 # 5min in millis
 RATE_LIMIT = 300 # 300req/5min
 CREDIT_LIMIT = 200*1 + 100*5 # 200 regular req, 100 heavy req
@@ -228,7 +229,7 @@ def getCredit(method):
     else:
         return 1
 
-def addReq(ip, method):
+def isThrottled(ip, method):
     ts = int( time.time_ns() / 1e6)
     global reqs
     global counter
@@ -240,9 +241,11 @@ def addReq(ip, method):
     counter[ip] += 1
     credits[ip] += getCredit(method)
     reqs.append((ts, ip, method))
-    if credits[ip]> CREDIT_LIMIT or counter[ip] > RATE_LIMIT:
-        return False # limited
-    return True # normal
+    if RATE_LIMIT > 0 and counter[ip] > RATE_LIMIT:
+        return 1 # over rate limit
+    if CREDIT_LIMIT > 0 and credits[ip]> CREDIT_LIMIT:
+        return 2 # over credit limit
+    return 0 # normal
 
 async def update_best_block():
     global bestBlock
@@ -253,8 +256,10 @@ async def update_best_block():
                 jsonRes = json.loads(res)
                 bestBlock = jsonRes['result']
                 logger.info("best block updated to %d %s", int(bestBlock['number'], 16), bestBlock['hash'])
-        except:
-            pass
+        except Error as e:
+            print("Error happened during best block update: ", e)
+        except Exception as e:
+            print("Exception happened during best block update: ", e)
         finally:
             await asyncio.sleep(2)
 
@@ -291,27 +296,47 @@ async def handleTextRequest(reqText, protocol, remoteIP):
         if bestBlock:
             stateRoot = bestBlock['stateRoot']
         jreq = json.loads(reqText)
-        id = jreq[0].get('id', -1) if isinstance(jreq, list) else jreq.get('id', -1)
-        method = jreq[0].get('method', 'unknown') if isinstance(jreq, list) else jreq.get('method', 'unknown')
-        params = jreq[0].get('params', 'unknown')  if isinstance(jreq, list) else jreq.get('params', 'unknown')
+        first = jreq[0] if isinstance(jreq, list) else jreq
 
-        key = stateRoot+str(method)+str(params)
-        if cache.has_key(key) and method != 'eth_getBlockByNumber' and method !='eth_blockNumber':
-            logger.info("%s Req #%s from %s[%d/%d] served in cache: %s", protocol, str(id), remoteIP, counter[remoteIP], credits[remoteIP], reqText)
-            return cache[key]
+        id = first.get('id', -1)
+        method = str(first.get('method', 'unknown'))
+        params = str(first.get('params', 'unknown'))
 
-        if not addReq(remoteIP, method):
-            logger.info("%s Req #%s [rate-limited(%d/%d)] from %s: %s", protocol, str(id), counter[remoteIP], credits[remoteIP], remoteIP, reqText)
-            logger.info("RATE_LIMIT=%d, CREDIT_LIMIT=%d", RATE_LIMIT, CREDIT_LIMIT)
-            return json.dumps({"jsonrpc": "2.0", "error": "slow down, you're over the rate limit", "id": id})
+        # search cache for existing answer except for these two calls:
+        # eth_getBlockByNumber & eth_blockNumber
+        cachekey = stateRoot + method + params
+        skipCacheMatching = method == 'eth_getBlockByNumber'  or method == 'eth_blockNumber'
+        if isinstance(jreq, list):
+            for r in jreq[1:]:
+                method = str(r.get('method', 'unknown'))
+                params = str(r.get('params', 'unknown'))
+                cachekey += method + params
+                skipCacheMatching = skipCacheMatching or method == 'eth_getBlockByNumber'  or method == 'eth_blockNumber'
         
-        logger.info("%s Req #%s from %s[%d/%d]: %s", protocol, str(id), remoteIP, counter[remoteIP], credits[remoteIP], reqText)
+        if not skipCacheMatching and cache.has_key(cachekey):
+            logger.info("%s Req #%s from %s[%d/%d] served in cache: %s", protocol, str(id), remoteIP, counter.get(remoteIP,0), credits.get(remoteIP,0), reqText)
+            return cache[cachekey]
+
+        if THROTTLED:
+            result = isThrottled(remoteIP, method)
+            if result == 1:
+                logger.info("%s Req #%s [rate-limited(%d/%d)] from %s: %s", protocol, str(id), counter.get(remoteIP,0), RATE_LIMIT, remoteIP, reqText)
+                return json.dumps({"jsonrpc": "2.0", "error": "slow down, you're over the rate limit (%d/%d)" % (counter.get(remoteIP,0), RATE_LIMIT), "id": id})
+            if result == 2:
+                logger.info("%s Req #%s [credit-limited(%d/%d)] from %s: %s", protocol, str(id), credits.get(remoteIP,0), CREDIT_LIMIT, remoteIP, reqText)
+                return json.dumps({"jsonrpc": "2.0", "error": "slow down, you're over the rate limit (%d/%d)" % (credits.get(remoteIP,0), CREDIT_LIMIT), "id": id})
+ 
+            logger.info("%s Req #%s from %s[%d/%d]: %s", protocol, str(id), remoteIP, counter.get(remoteIP,0), credits.get(remoteIP,0), reqText)
+        else:
+            logger.info("%s Req #%s from %s: %s", protocol, str(id), remoteIP, reqText)
+
+            
         res = await async_dispatch(json.dumps(jreq))
         if method in ['eth_call', 'eth_getBlockByNumber', 'eth_getBlockByHash', 'eth_getTransactionByHash', 'eth_getTransactionByBlockNumberAndIndex', 'eth_getTransactionByBlockHashAndIndex']:
             logger.debug("%s Res #%s: %s", protocol, str(id), '[hidden]')
         else:
             logger.debug("%s Res #%s: %s", protocol, str(id), res)
-        cache[key] = res
+        cache[cachekey] = res
         return res
     except JSONDecodeError as e:
         print(e)
@@ -497,17 +522,20 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
 @click.option( "--log", default=False, type=bool)
 @click.option( "--debug", default=False, type=bool)
 @click.option( "--chainid", default="0x53")
-@click.option( "--ratelimit", default=300, type=int)
-@click.option( "--creditlimit", default=200*1+100*5, type=int)
-def main(host, port, endpoint, keystore, passcode, log, debug, chainid, ratelimit, creditlimit):
+@click.option( "--throttled", default=False, type=bool)
+@click.option( "--ratelimit", default=0, type=int)
+@click.option( "--creditlimit", default=0, type=int)
+def main(host, port, endpoint, keystore, passcode, log, debug, chainid, throttled, ratelimit, creditlimit):
     chainIdHex = chainid
     if not chainid.startswith('0x'):
         chainIdHex = hex(int(chainid))
 
     global CREDIT_LIMIT
     global RATE_LIMIT
+    global THROTTLED
     RATE_LIMIT = ratelimit
     CREDIT_LIMIT = creditlimit
+    THROTTLED = throttled
     asyncio.run(run_server(host, port, endpoint, keystore,
                 passcode, log, debug, chainIdHex))
 
