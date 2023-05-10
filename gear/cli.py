@@ -315,7 +315,17 @@ async def handleTextRequest(reqText, protocol, remoteIP):
         
         if not skipCacheMatching and cache.has_key(cachekey):
             logger.info("%s Req #%s from %s[%d/%d] served in cache: %s", protocol, str(id), remoteIP, counter.get(remoteIP,0), credits.get(remoteIP,0), reqText)
-            return cache[cachekey]
+            cached = cache[cachekey]
+            cachedRes = json.loads(cached)
+            print(cachedRes)
+            if (isinstance(cachedRes, list)):
+                if len(jreq) == len(cachedRes):
+                    for index, r in enumerate(cachedRes):
+                        r['id']= jreq[index].get('id', id)
+            else:
+                cachedRes['id']= id
+            return json.dumps(cachedRes)
+
 
         if THROTTLED:
             result = isThrottled(remoteIP, method)
