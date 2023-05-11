@@ -305,7 +305,7 @@ async def handleTextRequest(reqText, protocol, remoteIP):
         # search cache for existing answer except for these two calls:
         # eth_getBlockByNumber & eth_blockNumber
         cachekey = stateRoot + method + params
-        skipCacheMatching = method == 'eth_getBlockByNumber'  or method == 'eth_blockNumber'
+        skipCacheMatching = method == 'eth_getBlockByNumber'  or method == 'eth_blockNumber' or method == 'eth_getCode'
         if isinstance(jreq, list):
             for r in jreq[1:]:
                 method = str(r.get('method', 'unknown'))
