@@ -183,7 +183,7 @@ def meter_tx_convert_to_eth_tx(tx):
             "r": r,
             "s": s,
             "v": v,
-            "type":_type,
+            "type":hex(_type),
             "maxPriorityFeePerGas": maxPriorityFeePerGas,
             "maxFeePerGas": maxFeePerGas,
         }
