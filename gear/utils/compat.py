@@ -154,11 +154,13 @@ def meter_tx_convert_to_eth_tx(tx):
     r = '0x0000000000000000000000000000000000000000000000000000000000000000'
     s = '0x0000000000000000000000000000000000000000000000000000000000000000'
     v = '0x00'
+    _type = 0
     if tx["ethTx"] and tx["ethTx"]["r"] and tx["ethTx"]["s"] and tx["ethTx"]["v"]:
         r = tx["ethTx"]["r"]
         s = tx["ethTx"]["s"]
         v = tx["ethTx"]["v"]
-
+    if tx['type']:
+        _type = tx['type']
     try:
         res = {
             "hash": tx["id"],
@@ -175,6 +177,7 @@ def meter_tx_convert_to_eth_tx(tx):
             "r": r,
             "s": s,
             "v": v,
+            "type":_type,
         }
         return res
     except Exception as e:
