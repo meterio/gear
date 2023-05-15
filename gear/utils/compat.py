@@ -157,6 +157,7 @@ def meter_tx_convert_to_eth_tx(tx):
     _type = 0
     maxFeePerGas = "0x00"
     maxPriorityFeePerGas = "0x00"
+    chainId = "0"
     if tx["ethTx"] and tx["ethTx"]["r"] and tx["ethTx"]["s"] and tx["ethTx"]["v"]:
         r = tx["ethTx"]["r"]
         s = tx["ethTx"]["s"]
@@ -167,6 +168,8 @@ def meter_tx_convert_to_eth_tx(tx):
         maxPriorityFeePerGas = tx['ethTx']['maxPriorityFeePerGas']
     if tx['ethTx'] and tx['ethTx']['maxFeePerGas']:
         maxFeePerGas = tx['ethTx']['maxFeePerGas'] 
+    if tx['ethTx'] and tx['ethTx']['chainId']:
+        chainId = tx['ethTx']['chainId']
     try:
         res = {
             "hash": tx["id"],
@@ -186,6 +189,7 @@ def meter_tx_convert_to_eth_tx(tx):
             "type":hex(_type),
             "maxPriorityFeePerGas": maxPriorityFeePerGas,
             "maxFeePerGas": maxFeePerGas,
+            "chainId":hex(int(chainId)),
         }
         return res
     except Exception as e:
