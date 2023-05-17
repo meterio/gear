@@ -32,11 +32,18 @@ def input_log_filter_formatter(filter_params):
     params_range = {"unit": "block"}
     from_blk = filter_params.get("fromBlock", None)
     if from_blk:
-        params_range["from"] = int(from_blk, 16)
+        if from_blk.startswith('0x'):
+            params_range["from"] = int(from_blk, 16)
+        else:
+            params_range['from'] = int(from_blk)
+    
     # params_range["from"] = int(filter_params["fromBlock"], 16)
     to_blk = filter_params.get("toBlock", None)
     if to_blk:
-        params_range["to"] = int(to_blk, 16)
+        if to_blk.startswith('0x'):
+            params_range["to"] = int(to_blk, 16)
+        else:
+            params_range['to'] = int(to_blk)
     return {
         "range": params_range,
         "topicSets": topics_formatter(filter_params.get("topics", []))
@@ -87,8 +94,8 @@ async def debug_storageRangeAt(blk_hash, tx_index, contract_addr, key_start, max
 #
 @method
 async def net_version():
-    res = str(int(meter.get_chainid(), 16))
-    return Success(res)
+    chainID = await meter.get_chain_id()
+    return Success(chainID)
 
 
 @method
@@ -140,13 +147,18 @@ async def eth_getStorageAt(address, position, block_identifier="best"):
 
 @method
 async def eth_chainId():
-    return Success(meter.get_chainid())
+    chainID = await meter.get_chain_id()
+    return Success(hex(int(chainID)))
 
 
 @method
 async def eth_gasPrice():
-    res = hex(int(500e9))  # default gas price set to 500 GWei
-    return Success(res)
+    baseFee = await meter.get_base_fee()
+    return Success(hex(int(baseFee)))
+
+@method
+async def eth_maxPriorityFeePerGas():
+    return Success(encode_number(0))
 
 
 @method
@@ -183,12 +195,6 @@ async def eth_blockNumber():
 async def eth_syncing():
     res = await meter.get_syncing()
     return Success(res)
-
-@method
-async def eth_maxPriorityFeePerGas():
-    return Success(encode_number(0))
-
-
 
 @method
 async def eth_estimateGas(transaction):
@@ -355,7 +361,16 @@ async def eth_getLogs(filter_obj):
     from_blk = filter_obj.get('fromBlock', None)
     if (from_blk == 'latest'):
         filter_obj['fromBlock'] = latest['number']
-    return Success(await meter.get_logs(filter_obj.get("address", None), input_log_filter_formatter(filter_obj)))
+
+    if 'toBlock' in filter_obj:
+        filter_obj['fromBlock'] = str(filter_obj['toBlock'])
+    if 'fromBlock' in filter_obj:
+        filter_obj['fromBlock'] = str(filter_obj['fromBlock'])
+
+    print(filter_obj)
+    result = await meter.get_logs(filter_obj.get("address", None), input_log_filter_formatter(filter_obj))
+    print("RESULT:", result)
+    return Success(result)
 
 @method
 async def trace_filter(filter_obj):

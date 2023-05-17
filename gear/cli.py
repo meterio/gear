@@ -474,7 +474,7 @@ async def websocket_handler(request):
     return ws
 
 
-async def run_server(host, port, endpoint, keystore, passcode, log, debug, chainid):
+async def run_server(host, port, endpoint, keystore, passcode, log, debug):
     try:
         response = requests.options(endpoint)
         response.raise_for_status()
@@ -482,7 +482,6 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
         logger.error("Unable to connect to Meter-Restful server.")
         return
     meter.set_endpoint(endpoint)
-    meter.set_chainid(chainid)
     if keystore == "":
         meter.set_accounts(solo())
     else:
@@ -531,15 +530,10 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug, chain
 @click.option( "--passcode", default="")
 @click.option( "--log", default=False, type=bool)
 @click.option( "--debug", default=False, type=bool)
-@click.option( "--chainid", default="0x53")
 @click.option( "--throttled", default=False, type=bool)
 @click.option( "--ratelimit", default=0, type=int)
 @click.option( "--creditlimit", default=0, type=int)
-def main(host, port, endpoint, keystore, passcode, log, debug, chainid, throttled, ratelimit, creditlimit):
-    chainIdHex = chainid
-    if not chainid.startswith('0x'):
-        chainIdHex = hex(int(chainid))
-
+def main(host, port, endpoint, keystore, passcode, log, debug, throttled, ratelimit, creditlimit):
     global CREDIT_LIMIT
     global RATE_LIMIT
     global THROTTLED
@@ -547,7 +541,7 @@ def main(host, port, endpoint, keystore, passcode, log, debug, chainid, throttle
     CREDIT_LIMIT = creditlimit
     THROTTLED = throttled
     asyncio.run(run_server(host, port, endpoint, keystore,
-                passcode, log, debug, chainIdHex))
+                passcode, log, debug))
 
 
 if __name__ == '__main__':

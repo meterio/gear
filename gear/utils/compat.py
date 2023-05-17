@@ -181,7 +181,7 @@ def meter_tx_convert_to_eth_tx(tx):
             "to": tx["clauses"][0]["to"],
             "value": tx["clauses"][0]["value"],
             "gas": encode_number(tx["gas"]),
-            "gasPrice": encode_number(1),
+            "gasPrice": encode_number(tx.get('gasPrice', 500e9)),
             "input": tx["clauses"][0]["data"],
             "r": r,
             "s": s,

@@ -42,11 +42,11 @@ class MeterClient(object, metaclass=Singleton):
     def __init__(self):
         self.filter = {}
 
-    def set_chainid(self, chainid):
-        self.chainid = chainid
+    async def get_base_fee(self):
+        return await self.blocks("baseFee").make_request(get)
 
-    def get_chainid(self):
-        return self.chainid
+    async def get_chain_id(self):
+        return await self.node("chainid").make_request(get)
 
     def set_endpoint(self, endpoint):
         restful = Restful(endpoint)
@@ -56,6 +56,7 @@ class MeterClient(object, metaclass=Singleton):
         self.accounts = restful.accounts
         self.events = restful.events
         self.debug = restful.debug
+        self.node = restful.node
 
     def set_accounts(self, account_manager):
         self.account_manager = account_manager
@@ -64,11 +65,11 @@ class MeterClient(object, metaclass=Singleton):
         tx = await self.transactions(tx_hash).make_request(get)
         if tx is None:
             return None
-        data = {
-            "name": "",
-            "target": "{}/{}/0".format(tx["meta"]["blockID"], tx_hash)
-        }
-        return await self.debug.tracers.make_request(post, data=data)
+        # data = {
+            # "name": "",
+            # "target": "{}/{}/0".format(tx["meta"]["blockID"], tx_hash)
+        # }
+        return await self.debug.trace(tx_hash).__getattr__(0).make_request(get)
 
     async def get_storage_at(self, address, position, block_identifier):
         params = {
@@ -268,6 +269,7 @@ class MeterClient(object, metaclass=Singleton):
                 query['address'] = address
             elif isinstance(address, str):
                 query['address'] = [address]
+        print("QUERY: ", query)
         logs = await self.events.make_request(post, data=query)
         result = meter_log_convert_to_eth_log(logs)
         return result
