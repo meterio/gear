@@ -95,7 +95,7 @@ async def debug_storageRangeAt(blk_hash, tx_index, contract_addr, key_start, max
 @method
 async def net_version():
     chainID = await meter.get_chain_id()
-    return Success(chainID)
+    return Success(str(chainID))
 
 
 @method
