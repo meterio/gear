@@ -366,11 +366,10 @@ async def eth_getLogs(filter_obj):
         filter_obj['fromBlock'] = latest['number']
 
     if 'toBlock' in filter_obj:
-        filter_obj['fromBlock'] = str(filter_obj['toBlock'])
+        filter_obj['toBlock'] = str(filter_obj['toBlock'])
     if 'fromBlock' in filter_obj:
         filter_obj['fromBlock'] = str(filter_obj['fromBlock'])
 
-    print(filter_obj)
     result = await meter.get_logs(filter_obj.get("address", None), input_log_filter_formatter(filter_obj))
     print("RESULT:", result)
     return Success(result)
