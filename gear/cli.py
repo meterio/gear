@@ -247,21 +247,27 @@ def isThrottled(ip, method):
         return 2 # over credit limit
     return 0 # normal
 
-async def update_best_block():
+async def update_best_block(enforce=False):
     global bestBlock
-    while True:
-        try:
-            res = await async_dispatch('{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest", false],"id":1}')
-            if res:
-                jsonRes = json.loads(res)
+    try:
+        res = await async_dispatch('{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest", false],"id":1}')
+        if res:
+            jsonRes = json.loads(res)
+            if not bestBlock or bestBlock['number'] != jsonRes['result']['number']:
                 bestBlock = jsonRes['result']
-                logger.info("best block updated to %d %s", int(bestBlock['number'], 16), bestBlock['hash'])
-        except Error as e:
-            print("Error happened during best block update: ", e)
-        except Exception as e:
-            print("Exception happened during best block update: ", e)
-        finally:
-            await asyncio.sleep(2)
+                if enforce:
+                    logger.info("best block enforcefully updated to %d %s", int(bestBlock['number'], 16), bestBlock['hash'])
+                else:
+                    logger.info("best block updated to %d %s", int(bestBlock['number'], 16), bestBlock['hash'])
+    except Error as e:
+        print("Error happened during best block update: ", e)
+    except Exception as e:
+        print("Exception happened during best block update: ", e)
+
+async def run_best_block_updater():
+    while True:
+        await update_best_block()
+        await asyncio.sleep(1)
 
 async def housekeeping():
     global reqs
@@ -313,11 +319,14 @@ async def handleTextRequest(reqText, protocol, remoteIP):
                 cachekey += method + params
                 skipCacheMatching = skipCacheMatching or method == 'eth_getBlockByNumber'  or method == 'eth_blockNumber'
         
+        enforceUpdateBestBlock = method =='eth_getLogs' or method == 'eth_call'
+        if enforceUpdateBestBlock:
+            await update_best_block(enforce=True)
+
         if not skipCacheMatching and cache.has_key(cachekey):
             logger.info("%s Req #%s from %s[%d/%d] served in cache: %s", protocol, str(id), remoteIP, counter.get(remoteIP,0), credits.get(remoteIP,0), reqText)
             cached = cache[cachekey]
             cachedRes = json.loads(cached)
-            print(cachedRes)
             if (isinstance(cachedRes, list)):
                 if len(jreq) == len(cachedRes):
                     for index, r in enumerate(cachedRes):
@@ -518,7 +527,7 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug):
     asyncio.create_task(run_new_head_observer(endpoint))
     asyncio.create_task(run_event_observer(endpoint))
     asyncio.create_task(housekeeping())
-    asyncio.create_task(update_best_block())
+    asyncio.create_task(run_best_block_updater())
     await asyncio.Event().wait()
 
 
