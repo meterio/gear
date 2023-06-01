@@ -153,10 +153,10 @@ def meter_log_convert_to_eth_log(logs):
 def meter_tx_convert_to_eth_tx(tx):
     r = '0x0000000000000000000000000000000000000000000000000000000000000000'
     s = '0x0000000000000000000000000000000000000000000000000000000000000000'
-    v = '0x00'
+    v = '0x0'
     _type = 0
-    maxFeePerGas = "0x00"
-    maxPriorityFeePerGas = "0x00"
+    maxFeePerGas = "0x0"
+    maxPriorityFeePerGas = "0x0"
     chainId = "0"
     if tx["ethTx"] and tx["ethTx"]["r"] and tx["ethTx"]["s"] and tx["ethTx"]["v"]:
         r = tx["ethTx"]["r"]
