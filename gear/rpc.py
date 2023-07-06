@@ -390,6 +390,8 @@ async def trace_transaction(filter_obj):
 
 @method
 async def trace_block(filter_obj):
+    if (filter_obj and filter_obj in [ '0x23336c5', '0x23336f6','0x23336ea', '0x23336de', '0x23336cf', '0x23336f5'] ):
+        return Success([])
     res = await meter.get_trace_block(filter_obj)
     return Success(res)
 
