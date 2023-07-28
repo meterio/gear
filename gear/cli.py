@@ -349,12 +349,13 @@ async def handleTextRequest(reqText, protocol, remoteIP):
         else:
             logger.info("%s Req #%s from %s: %s", protocol, str(id), remoteIP, reqText)
 
-            
+        if "skipCache" in jreq:
+            del jreq['skipCache']
         res = await async_dispatch(json.dumps(jreq))
         if method in ['eth_call', 'eth_getBlockByNumber', 'eth_getBlockByHash', 'eth_getTransactionByHash', 'eth_getTransactionByBlockNumberAndIndex', 'eth_getTransactionByBlockHashAndIndex']:
-            logger.debug("%s Res #%s: %s", protocol, str(id), '[hidden]')
+            logger.info("%s Res #%s: %s", protocol, str(id), '[hidden]')
         else:
-            logger.debug("%s Res #%s: %s", protocol, str(id), res)
+            logger.info("%s Res #%s: %s", protocol, str(id), res)
         cache[cachekey] = res
         return res
     except JSONDecodeError as e:

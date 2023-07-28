@@ -52,7 +52,7 @@ class Restful(object):
             "Content-Type": "application/json"
         }
         kwargs.setdefault('headers', headers)
-        kwargs.setdefault('timeout', 18)
+        kwargs.setdefault('timeout', 60)
         kwargs.setdefault('chunked', True)
         errResponse = {"error": "", "code": 0}
         try:

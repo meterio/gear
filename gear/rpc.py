@@ -2,7 +2,7 @@ import itertools
 import sys
 import random
 import time
-
+import asyncio
 from .meter.client import meter
 from .utils.compat import noop
 from .utils.types import (
@@ -303,8 +303,13 @@ async def eth_getTransactionByBlockHashAndIndex(blockHash, index):
 @method
 async def eth_getTransactionReceipt(tx_hash):
     if tx_hash:
-        res = await meter.get_transaction_receipt(tx_hash)
-        return Success(res)
+        for i in range(8):
+            res = await meter.get_transaction_receipt(tx_hash)
+            if not res or res == None:
+                print('could not get receipt for tx: ', tx_hash)
+                await asyncio.sleep(1)
+                continue
+            return Success(res)
     return Success(None)
 
 
