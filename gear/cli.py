@@ -198,54 +198,115 @@ async def checkHealth():
     res = await handleTextRequest(json.dumps(r), 'Health', 'local')
     return web.Response(text=res, content_type="application/json", headers=res_headers)
 
+def secondElem(items):
+    return items[1] if items else 1
+
 async def getReqs():
-    res = json.dumps(reqs)
-    return web.Response(text=res, headers=res_headers)
+    global reqs
+    return web.Response(text=json.dumps(reqs),  headers=res_headers)
 
-async def getCounter():
-    res = json.dumps(counter)
-    return web.Response(text=res, headers=res_headers)
+async def getUsage():
+    global reqs
+    global usage
+    global USAGE_LIMIT_WINDOW
+    global USAGE_LIMIT
+    global THROTTLE_ENABLED
+    ips = {}
+    methods = {}
+    cacheds = {}
+    throttleds = {}
 
-async def getCredits():
-    res = json.dumps(credits)
-    return web.Response(text=res, headers=res_headers)
+    refreshReqs()
 
-counter = {}
-credits = {}
+    for item in reqs:
+        ip = item[1]
+        method = item[2]
+        cached = item[3]
+        throttled = item[4]
+        ips[ip] = ips.get(ip, 0) + 1
+        methods[method] = methods.get(method, 0) + 1
+        if cached:
+            cacheds[method] = cacheds.get(method, 0) + 1
+        if throttled:
+            throttleds[ip] = throttleds.get(ip, 0) + 1
+    
+    try:
+        topIPs = list(ips.items())
+        topIPs.sort(reverse=True, key=secondElem)
+        topIPs = topIPs[:50]
+
+        topMethods = list(methods.items())
+        topMethods.sort(reverse=True, key=secondElem)
+        topMethods = topMethods[:50]
+
+        topCacheds = list(cacheds.items())
+        topCacheds.sort(reverse=True, key=secondElem)
+        topCacheds = topCacheds[:50]
+
+        topThrottleds = list(throttleds.items())
+        topThrottleds.sort(reverse=True, key=secondElem)
+        topThrottleds = topThrottleds[:50]
+    except e:
+        print("ERROR: ", e)
+
+    result = json.dumps({"throttleEnabled": THROTTLE_ENABLED,  "req limit":USAGE_LIMIT, "rate limit": str(USAGE_LIMIT*1000/USAGE_LIMIT_WINDOW)+' req/s', "limit window": str(USAGE_LIMIT_WINDOW/1000)+' sec', "topIPs":dict(topIPs), "topMethods":dict(topMethods), "topCachedMethods": dict(topCacheds), "topThrottledIPs": dict(topThrottleds), "usage":usage})
+    return web.Response(text=result,  headers=res_headers)
+
+usage = {}
 reqs = []
-THROTTLED = False
-RATE_LIMIT_WINDOW = 5*60*1000 # 5min in millis
-RATE_LIMIT = 300 # 300req/5min
-CREDIT_LIMIT = 200*1 + 100*5 # 200 regular req, 100 heavy req
+THROTTLE_ENABLED = False
+USAGE_LIMIT = 0
+USAGE_LIMIT_WINDOW = 0
 
 bestBlock = None
 cache = LRU(1024)
 
-def getCredit(method):
-    if method == 'eth_call':
-        return 5
-    elif method == 'eth_getLogs':
-        return 5
-    else:
-        return 1
+def getWeight(method):
+    if method == 'eth_call' or method == 'eth_getLogs':
+        return 2
+    return 1
 
-def isThrottled(ip, method):
-    ts = int( time.time_ns() / 1e6)
+def refreshReqs():
+    while len(reqs)>0:
+        now_s = int( time.time_ns() / 1e6)
+        if reqs[0][0] < now_s - USAGE_LIMIT_WINDOW:
+            d = reqs.pop(0)
+            # ts = d[0]
+            reqIp = d[1]
+            reqMethod = d[2]
+            reqCached = d[3]
+            reqThrottled = d[4]
+            reqWeight = getWeight(reqMethod)
+            if reqIp in usage:
+                # minus usage if req is not cached/throttled
+                if not reqCached and not reqThrottled:
+                    usage[reqIp] -= reqWeight
+                if usage[reqIp] <= 0:
+                    del usage[reqIp]
+        else:
+            break
+
+
+def updateUsage(ip, method, cached, throttled):
+    ts = int( time.time_ns() / 1e6 )
     global reqs
-    global counter
-    global credits
-    if ip not in counter:
-        counter[ip] = 0
-    if ip not in credits:
-        credits[ip] = 0
-    counter[ip] += 1
-    credits[ip] += getCredit(method)
-    reqs.append((ts, ip, method))
-    if RATE_LIMIT > 0 and counter[ip] > RATE_LIMIT:
-        return 1 # over rate limit
-    if CREDIT_LIMIT > 0 and credits[ip]> CREDIT_LIMIT:
-        return 2 # over credit limit
-    return 0 # normal
+    global usage
+    reqs.append((ts, ip, method, cached, throttled))
+
+    # add usage if req is not cached/throttled
+    if not cached and not throttled:
+        weight = getWeight(method)
+        usage[ip] = usage.get(ip, 0) + weight
+
+    refreshReqs()
+
+def isThrottled(ip):
+    if ip not in usage:
+        usage[ip] = 0
+        return 0
+    if USAGE_LIMIT > 0 and usage[ip] > USAGE_LIMIT:
+        return True # over rate limit
+    return False # normal
 
 async def update_best_block(enforce=False):
     global bestBlock
@@ -269,31 +330,6 @@ async def run_best_block_updater():
         await update_best_block()
         await asyncio.sleep(1)
 
-async def housekeeping():
-    global reqs
-    global counter
-    global credits
-    while True:
-        while len(reqs)>0:
-            now_s = int( time.time_ns() / 1e6)
-            if reqs[0][0] < now_s - RATE_LIMIT_WINDOW:
-                d = reqs.pop(0)
-                # ts = d[0]
-                ip = d[1]
-                method = d[2]
-                credit = getCredit(method)
-                if ip in counter:
-                    counter[ip] -= 1
-                    if counter[ip] <= 0:
-                        del counter[ip]
-                if ip in credits:
-                    credits[ip] -= credit
-                    if credits[ip] <= 0:
-                        del credits[ip]
-            else:
-                break
-
-        await asyncio.sleep(10)
 
 async def handleTextRequest(reqText, protocol, remoteIP):
     try:
@@ -323,8 +359,9 @@ async def handleTextRequest(reqText, protocol, remoteIP):
         if enforceUpdateBestBlock:
             await update_best_block(enforce=True)
 
+
         if not skipCacheMatching and cache.has_key(cachekey):
-            logger.info("%s Req #%s from %s[%d/%d] served in cache: %s", protocol, str(id), remoteIP, counter.get(remoteIP,0), credits.get(remoteIP,0), reqText)
+            logger.info("%s Req #%s from %s[%d/%d] served in cache: %s", protocol, str(id), remoteIP, usage.get(remoteIP,0), USAGE_LIMIT, reqText)
             cached = cache[cachekey]
             cachedRes = json.loads(cached)
             if (isinstance(cachedRes, list)):
@@ -333,19 +370,21 @@ async def handleTextRequest(reqText, protocol, remoteIP):
                         r['id']= jreq[index].get('id', id)
             else:
                 cachedRes['id']= id
+            updateUsage(remoteIP, method, True, False)
             return json.dumps(cachedRes)
 
+        throttled = isThrottled(remoteIP)
 
-        if THROTTLED:
-            result = isThrottled(remoteIP, method)
-            if result == 1:
-                logger.info("%s Req #%s [rate-limited(%d/%d)] from %s: %s", protocol, str(id), counter.get(remoteIP,0), RATE_LIMIT, remoteIP, reqText)
-                return json.dumps({"jsonrpc": "2.0", "error": "slow down, you're over the rate limit (%d/%d)" % (counter.get(remoteIP,0), RATE_LIMIT), "id": id})
-            if result == 2:
-                logger.info("%s Req #%s [credit-limited(%d/%d)] from %s: %s", protocol, str(id), credits.get(remoteIP,0), CREDIT_LIMIT, remoteIP, reqText)
-                return json.dumps({"jsonrpc": "2.0", "error": "slow down, you're over the rate limit (%d/%d)" % (credits.get(remoteIP,0), CREDIT_LIMIT), "id": id})
+        updateUsage(remoteIP, method, False, THROTTLE_ENABLED and throttled)
+
+        throttled = isThrottled(remoteIP)
+
+        if THROTTLE_ENABLED:
+            if throttled:
+                logger.info("%s Req #%s [limited(%d/%d)] from %s: %s", protocol, str(id), usage.get(remoteIP,0), USAGE_LIMIT, remoteIP, reqText)
+                return json.dumps({"jsonrpc": "2.0", "error": "slow down, you're over the rate limit (%d/%d)" % (usage.get(remoteIP,0), USAGE_LIMIT), "id": id})
  
-            logger.info("%s Req #%s from %s[%d/%d]: %s", protocol, str(id), remoteIP, counter.get(remoteIP,0), credits.get(remoteIP,0), reqText)
+            logger.info("%s Req #%s from %s[%d/%d]: %s", protocol, str(id), remoteIP, usage.get(remoteIP,0), USAGE_LIMIT, reqText)
         else:
             logger.info("%s Req #%s from %s: %s", protocol, str(id), remoteIP, reqText)
 
@@ -503,9 +542,8 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug):
     http_app.router.add_options(
         "/", lambda r: web.Response(headers=res_headers))
     http_app.router.add_get("/health", lambda r: checkHealth())
+    http_app.router.add_get("/usage", lambda r: getUsage())
     http_app.router.add_get("/reqs", lambda r: getReqs())
-    http_app.router.add_get("/counter", lambda r: getCounter())
-    http_app.router.add_get("/credits", lambda r: getCredits())
 
     ws_app = web.Application()
     ws_app.router.add_get('/', websocket_handler)
@@ -527,7 +565,7 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug):
     asyncio.create_task(run_tx_observer())
     asyncio.create_task(run_new_head_observer(endpoint))
     asyncio.create_task(run_event_observer(endpoint))
-    asyncio.create_task(housekeeping())
+    # asyncio.create_task(housekeeping())
     asyncio.create_task(run_best_block_updater())
     await asyncio.Event().wait()
 
@@ -541,15 +579,17 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug):
 @click.option( "--log", default=False, type=bool)
 @click.option( "--debug", default=False, type=bool)
 @click.option( "--throttled", default=False, type=bool)
-@click.option( "--ratelimit", default=0, type=int)
-@click.option( "--creditlimit", default=0, type=int)
-def main(host, port, endpoint, keystore, passcode, log, debug, throttled, ratelimit, creditlimit):
-    global CREDIT_LIMIT
-    global RATE_LIMIT
-    global THROTTLED
-    RATE_LIMIT = ratelimit
-    CREDIT_LIMIT = creditlimit
-    THROTTLED = throttled
+@click.option( "--ratelimit", default=10, type=int) # request limit in window
+@click.option( "--limitwindow", default=10*60, type=int) # window in seconds
+def main(host, port, endpoint, keystore, passcode, log, debug, throttled, ratelimit, limitwindow):
+    global USAGE_LIMIT
+    global THROTTLE_ENABLED
+    global USAGE_LIMIT_WINDOW
+    THROTTLE_ENABLED = throttled
+    if limitwindow > 0:
+        USAGE_LIMIT_WINDOW = limitwindow * 1000
+    if ratelimit > 0:
+        USAGE_LIMIT = ratelimit * limitwindow
     asyncio.run(run_server(host, port, endpoint, keystore,
                 passcode, log, debug))
 
