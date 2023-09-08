@@ -337,6 +337,43 @@ async def get_block(block_identifier, full_tx):
             blk['baseFeePerGas'] = hex(int(str(blk['baseFeePerGas'])))
     return blk
 
+@method
+async def eth_feeHistory(blockCount, newestBlock, rewardPercentiles):
+    formattedBlockCount = 0
+    try:
+        formattedBlockCount = int(blockCount)
+    except:
+        formattedBlockCount = int(blockCount, 16)
+    
+    formattedNewestBlock = 0
+    try:
+        formattedNewestBlock = int(newestBlock)
+    except:
+        formattedNewestBlock = int(newestBlock, 16) 
+    if formattedBlockCount <1 or formattedBlockCount>1024:
+        return Error(300, "blockCount is out of range")
+    res = await get_feeHistory(formattedBlockCount, formattedNewestBlock, rewardPercentiles)
+    return Success(res)
+
+async def get_feeHistory(blockCount, newestBlock, rewardPercentiles):
+    oldestBlock = newestBlock-blockCount+1
+    baseFeePerGas = []
+    gasUsedRatio = []
+    reward = []
+    for i in range(oldestBlock-1, newestBlock):
+        blk = await meter.get_block(normalize_number(i))
+        if 'baseFeePerGas' not in blk:
+            baseFeePerGas.append('0x746a528800')
+        else:
+            baseFeePerGas.append(hex(int(str(blk['baseFeePerGas']))))
+        gasUsed = int(blk['gasUsed'], 16)
+        gasLimit = int(blk['gasLimit'], 16)
+        gasUsedRatio.append(gasUsed*1.0/gasLimit)
+        reward.append(['0x00']*len(rewardPercentiles))
+    res = {'oldestBlock': hex(oldestBlock), 'baseFeePerGas':baseFeePerGas, 'gasUsedRatio':gasUsedRatio, 'reward':reward}
+    return res
+
+
 async def get_block_tx_count(block_identifier):
     blk = await meter.get_block(normalize_block_identifier(block_identifier))
     return len(blk['transactions']) 
