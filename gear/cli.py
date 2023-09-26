@@ -7,6 +7,7 @@ import aiohttp
 from aiohttp import web
 import time
 from lru import LRU
+from gear import __version__
 
 from gear.utils.compat import meter_log_convert_to_eth_log, meter_block_convert_to_eth_block
 from json.decoder import JSONDecodeError
@@ -571,6 +572,7 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug):
 
 
 @click.command()
+@click.version_option(__version__)
 @click.option( "--host", default="0.0.0.0")
 @click.option( "--port", default=8545, type=int)
 @click.option( "--endpoint", default="http://127.0.0.1:8669")
