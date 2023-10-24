@@ -59,6 +59,7 @@ async def run_new_head_observer(endpoint):
     while True:
         try:
             async with websockets.connect(ws_endpoint) as beatWS:
+                logger.info("subscribed to beat")
                 async for msg in beatWS:
                     for key in list(newHeadListeners.keys()):
                         ws = newHeadListeners[key]
@@ -79,7 +80,7 @@ async def run_new_head_observer(endpoint):
                             logger.error(
                                 'error happend for client ws %s, ignored: %s', key, e)
         except Exception as e:
-            logger.error('error happened in head observer: %s', e)
+            logger.error('error happened in beat observer: %s', e)
             logger.error('retry in 10 seconds')
             await asyncio.sleep(10)
 
@@ -163,6 +164,7 @@ async def run_event_observer(endpoint):
     while True:
         try:
             async with websockets.connect(ws_endpoint) as eventWS:
+                logger.info("subscribed to event")
                 async for msg in eventWS:
                     # logger.info('got msg: %s', str(msg))
                     for key in list(logListeners.keys()):
@@ -188,8 +190,8 @@ async def run_event_observer(endpoint):
                                 'error happend: %s for client ws: %s ', e, key)
         except Exception as e:
             logger.error('error happend in event observer: %s', e)
-            logger.error('log: %s', log)
-            logger.error('filters: %s', filters)
+            # logger.error('log: %s', log)
+            # logger.error('filters: %s', filters)
             logger.error('retry in 10 seconds')
             await asyncio.sleep(10)
 
@@ -197,6 +199,9 @@ async def run_event_observer(endpoint):
 async def checkHealth():
     r = {"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 8545}
     res = await handleTextRequest(json.dumps(r), 'Health', 'local')
+    if res.error:
+        return web.Response(text=res, status=500, content_type="application/json", headers=res_headers)
+
     return web.Response(text=res, content_type="application/json", headers=res_headers)
 
 def secondElem(items):
@@ -328,8 +333,15 @@ async def update_best_block(enforce=False):
 
 async def run_best_block_updater():
     while True:
-        await update_best_block()
-        await asyncio.sleep(1)
+        try:
+            await update_best_block()
+            await asyncio.sleep(1)
+        except Exception as e:
+            logger.error('error happened in best_block_updater: %s', e)
+            logger.error('retry in 5 seconds')
+            await asyncio.sleep(5)
+            logger.info("after sleep")
+
 
 
 async def handleTextRequest(reqText, protocol, remoteIP):
@@ -569,6 +581,7 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug):
     # asyncio.create_task(housekeeping())
     asyncio.create_task(run_best_block_updater())
     await asyncio.Event().wait()
+    logger.info("after the loop")
 
 
 @click.command()

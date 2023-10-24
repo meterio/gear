@@ -303,7 +303,7 @@ async def eth_getTransactionByBlockHashAndIndex(blockHash, index):
 @method
 async def eth_getTransactionReceipt(tx_hash):
     if tx_hash:
-        for i in range(8):
+        for i in range(12):
             res = await meter.get_transaction_receipt(tx_hash)
             if not res or res == None:
                 print('could not get receipt for tx: ', tx_hash)
