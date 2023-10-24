@@ -197,12 +197,19 @@ async def run_event_observer(endpoint):
 
 
 async def checkHealth():
+    logger.info("check health")
     r = {"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 8545}
-    res = await handleTextRequest(json.dumps(r), 'Health', 'local')
-    if res.error:
-        return web.Response(text=res, status=500, content_type="application/json", headers=res_headers)
+    try:
+        res = await handleTextRequest(json.dumps(r), 'Health', 'local')
+        resJson = json.loads(res)
 
-    return web.Response(text=res, content_type="application/json", headers=res_headers)
+        if 'error' in resJson:
+            return web.Response(text=res, status=500, content_type="application/json", headers=res_headers)
+        return web.Response(text=res, content_type="application/json", headers=res_headers)
+
+    except Exception as e:
+        logger.error("error happened: %s", e)
+        return web.Response(text=res, status=500, content_type="application/json", headers=res_headers)
 
 def secondElem(items):
     return items[1] if items else 1
