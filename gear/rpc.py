@@ -1,5 +1,6 @@
 import itertools
 import sys
+import re
 import random
 import time
 import asyncio
@@ -203,10 +204,17 @@ async def eth_estimateGas(transaction):
     res = encode_number(result)
     return Success(res)
 
+addressPattern = re.compile('0x[0-9a-fA-F]{40}')
 
 @method
 async def eth_call(transaction, block_identifier="best"):
     formatted_transaction = input_transaction_formatter(transaction)
+    _to = formatted_transaction.get('to',None)
+    _from = formatted_transaction.get('from',None)
+    if not _to is None and not addressPattern.match(_to):
+        return Error(400, "to address is invalid")
+    if not _from is None and not addressPattern.match(_from):
+        return Error(400, "from address is invalid")
     res = await meter.call(formatted_transaction, normalize_block_identifier(block_identifier))
     return Success(res)
 
