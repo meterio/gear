@@ -109,7 +109,7 @@ class MeterClient(object, metaclass=Singleton):
         blk = await self.blocks(block_identifier).make_request(get)
         return _attribute(blk, "id")
 
-    async def estimate_gas(self, transaction):
+    async def estimate_gas(self, transaction ):
         data = {
             "data": transaction.get("data",'0x'),
             "value": encode_number(transaction.get("value", 0)),

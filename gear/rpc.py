@@ -197,8 +197,9 @@ async def eth_syncing():
     res = await meter.get_syncing()
     return Success(res)
 
+
 @method
-async def eth_estimateGas(transaction):
+async def eth_estimateGas(transaction, *args):
     formatted_transaction = input_transaction_formatter(transaction)
     result = await meter.estimate_gas(formatted_transaction)
     res = encode_number(result)

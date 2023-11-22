@@ -52,6 +52,10 @@ def hash_digest(param):
     digest = h.hexdigest()
     return digest
 
+def genID(strkey):
+    h = hashlib.sha256(strkey.encode())
+    id = h.hexdigest()
+    return '0x'+id
 
 async def run_new_head_observer(endpoint):
     ws_endpoint = endpoint.replace('https', 'ws').replace(
@@ -71,8 +75,9 @@ async def run_new_head_observer(endpoint):
                             logger.info('forward to ws %s', key)
                         blk = meter_block_convert_to_eth_block(r)
                         try:
+                            subid = genID(key)
                             out = json.dumps({"jsonrpc": "2.0", "method": "eth_subscription", "params": {
-                                             "subscription": SUB_ID, "result": blk}})
+                                             "subscription": subid, "result": blk}})
                             # logger.info('res: %s', out)
                             await ws.send_str(out)
                         except Exception as e:
@@ -180,9 +185,10 @@ async def run_event_observer(endpoint):
                         result['logIndex'] = result['logIndex']
                         result['transactionIndex'] = result['transactionIndex']
                         result['blockNumber'] = result['blockNumber']
+                        subid = genID(key)
                         try:
                             out = json.dumps({"jsonrpc": "2.0", "method": "eth_subscription", "params": {
-                                             "subscription": SUB_ID, "result": result}})
+                                             "subscription": subid, "result": result}})
                             await ws.send_str(out)
                         except Exception as e:
                             del logListeners[key]
@@ -480,13 +486,16 @@ async def websocket_handler(request):
                     logger.error("params is not list, not supported")
                     continue
 
+                subid = SUB_ID
                 if params[0] == 'newHeads':
                     newHeadListeners[key] = ws
+                    subid = genID(key)
                     logger.info("SUBSCRIBE to newHead: %s", key)
 
                 elif params[0] == 'logs':
                     digest = hash_digest(str(params[1:]))
                     newkey = key+'-'+digest
+                    subid = genID(newkey)
                     filters = params[1:]
                     # TODO: filter out invalid filters
                     if not isinstance(filters, list):
@@ -504,15 +513,17 @@ async def websocket_handler(request):
                 else:
                     logger.error("not supported subscription: %s", params[0])
 
-                await ws.send_str(json.dumps({"jsonrpc": "2.0", "result": SUB_ID, "id": id}))
+                await ws.send_str(json.dumps({"jsonrpc": "2.0", "result": subid, "id": id}))
 
             elif (method == "eth_unsubscribe"):
                 # handle unsubscribe
                 await ws.send_str(json.dumps({"jsonrpc": "2.0", "result": True, "id": id}))
+                subid = params[0]
                 if key in newHeadListeners:
                     del newHeadListeners[key]
-                if key in logListeners:
-                    del logListeners[key]
+                for key in logListeners:
+                    if genID(key) == subid:
+                        del logListeners[key]
                 logger.info("UNSUBSCRIBE: %s", key)
                 await ws.close()
             elif (method == 'eth_getTransactionReceipt'):
