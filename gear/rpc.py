@@ -356,6 +356,9 @@ async def eth_feeHistory(blockCount, newestBlock, rewardPercentiles):
     
     formattedNewestBlock = 0
     try:
+        if newestBlock == "latest":
+            latest = await meter.get_block('best')
+            newestBlock = latest['number']
         formattedNewestBlock = int(newestBlock)
     except:
         formattedNewestBlock = int(newestBlock, 16) 
