@@ -4,6 +4,7 @@ import re
 import random
 import time
 import asyncio
+import copy
 from .meter.client import meter
 from .utils.compat import noop
 from .utils.types import (
@@ -320,6 +321,22 @@ async def eth_getTransactionReceipt(tx_hash):
                 continue
             return Success(res)
     return Success(None)
+
+@method
+async def eth_getBlockReceipts(block_number):
+    blk = await get_block(block_number, False)
+    txs = blk.get('transactions', [])
+    result =[]
+    for txhash in txs:
+        res = await meter.get_transaction_receipt(txhash)
+        if not res or res == None:
+            print('could not get receipt for tx: ', txhash)
+            continue
+        print('get receipt for tx', txhash, res)
+        receipt = copy.copy(res)
+        result.append(receipt)
+
+    return Success(result)
 
 
 @method
