@@ -416,6 +416,8 @@ async def handleTextRequest(reqText, protocol, remoteIP):
 
         if "skipCache" in jreq:
             del jreq['skipCache']
+        if "lang" in jreq:
+            del jreq['lang']
         res = await async_dispatch(json.dumps(jreq))
         if method in ['eth_call', 'eth_getBlockByNumber', 'eth_getBlockByHash', 'eth_getTransactionByHash', 'eth_getTransactionByBlockNumberAndIndex', 'eth_getTransactionByBlockHashAndIndex']:
             logger.info("%s Res #%s: %s", protocol, str(id), '[hidden]')
