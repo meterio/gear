@@ -189,7 +189,7 @@ async def eth_getCode(address, block_identifier="best"):
 
 
 @method
-async def eth_blockNumber():
+async def eth_blockNumber(*args):
     res = encode_number(await meter.get_block_number())
     return Success(res)
 
