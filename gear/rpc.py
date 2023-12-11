@@ -314,11 +314,16 @@ async def eth_getTransactionByBlockHashAndIndex(blockHash, index):
 async def eth_getTransactionReceipt(tx_hash):
     if tx_hash:
         for i in range(12):
+            tx = await meter.get_transaction_by_hash(tx_hash)
             res = await meter.get_transaction_receipt(tx_hash)
             if not res or res == None:
                 print('could not get receipt for tx: ', tx_hash)
                 await asyncio.sleep(1)
                 continue
+            if not res.get('contractAddress', None):
+                res['to'] = tx.get('to', None)
+            else:
+                res['to'] = None
             return Success(res)
     return Success(None)
 
