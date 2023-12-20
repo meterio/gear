@@ -13,6 +13,7 @@ from gear.utils.compat import (
     meter_block_convert_to_eth_block,
     meter_receipt_convert_to_eth_receipt,
     meter_tx_convert_to_eth_tx,
+    meter_expanded_tx_convert_to_eth_tx,
     meter_log_convert_to_eth_log,
     meter_storage_convert_to_eth_storage,
     MeterTransaction,
@@ -225,6 +226,18 @@ class MeterClient(object, metaclass=Singleton):
     async def get_block(self, block_identifier):
         blk = await self.blocks(block_identifier).make_request(get)
         return None if blk is None else meter_block_convert_to_eth_block(blk)
+
+    async def get_block_with_tx_expanded(self, block_identifier):
+        print('block_identifier', block_identifier)
+        blk = await self.blocks(block_identifier).make_request(get, {"expanded":"true"})
+        txs = []
+        for i,tx in enumerate(blk.get('transactions', [])):
+            converted = meter_expanded_tx_convert_to_eth_tx(tx, blk.get('id', '0x'), blk.get('number',0), i)
+            converted['transactionIndex'] = i
+            txs.append(converted)
+        blk['transactions'] = txs
+        return None if blk is None else meter_block_convert_to_eth_block(blk)
+
 
     async def get_transaction_count(self, address, tag):
         nonce = '0x1'

@@ -158,18 +158,19 @@ def meter_tx_convert_to_eth_tx(tx):
     maxFeePerGas = "0x0"
     maxPriorityFeePerGas = "0x0"
     chainId = "0"
-    if tx["ethTx"] and tx["ethTx"]["r"] and tx["ethTx"]["s"] and tx["ethTx"]["v"]:
-        r = tx["ethTx"]["r"]
-        s = tx["ethTx"]["s"]
-        v = tx["ethTx"]["v"]
-    if tx['ethTx'] and tx['ethTx']['type']:
-        _type = tx['ethTx']['type']
-    if tx['ethTx'] and tx['ethTx']['maxPriorityFeePerGas']:
-        maxPriorityFeePerGas = tx['ethTx']['maxPriorityFeePerGas']
-    if tx['ethTx'] and tx['ethTx']['maxFeePerGas']:
-        maxFeePerGas = tx['ethTx']['maxFeePerGas'] 
-    if tx['ethTx'] and tx['ethTx']['chainId']:
-        chainId = tx['ethTx']['chainId']
+    if 'ethTx' in tx:
+        if tx["ethTx"] and tx["ethTx"]["r"] and tx["ethTx"]["s"] and tx["ethTx"]["v"]:
+            r = tx["ethTx"]["r"]
+            s = tx["ethTx"]["s"]
+            v = tx["ethTx"]["v"]
+        if tx['ethTx'] and tx['ethTx']['type']:
+            _type = tx['ethTx']['type']
+        if tx['ethTx'] and tx['ethTx']['maxPriorityFeePerGas']:
+            maxPriorityFeePerGas = tx['ethTx']['maxPriorityFeePerGas']
+        if tx['ethTx'] and tx['ethTx']['maxFeePerGas']:
+            maxFeePerGas = tx['ethTx']['maxFeePerGas'] 
+        if tx['ethTx'] and tx['ethTx']['chainId']:
+            chainId = tx['ethTx']['chainId']
     try:
         res = {
             "hash": tx["id"],
@@ -195,7 +196,29 @@ def meter_tx_convert_to_eth_tx(tx):
     except Exception as e:
         print("ERROR: ", e)
 
-
+def meter_expanded_tx_convert_to_eth_tx(tx, blockHash, blockNum, txIndex):
+    _type = 0
+    maxPriorityFeePerGas = "0x0"
+   
+    try:
+        res = {
+            "hash": tx["id"],
+            "nonce": tx["nonce"],
+            "blockHash": blockHash,
+            "blockNumber": encode_number(blockNum),
+            "transactionIndex": encode_number(txIndex),
+            "from": tx["origin"],
+            "to": tx["clauses"][0]["to"],
+            "value": tx["clauses"][0]["value"],
+            "gas": encode_number(tx["gas"]),
+            "gasPrice": encode_number(tx.get('gasPrice', 500e9)),
+            "input": tx["clauses"][0]["data"],
+            "type":hex(_type),
+            "maxPriorityFeePerGas": maxPriorityFeePerGas,
+        }
+        return res
+    except Exception as e:
+        print("ERROR: ", e)
 #
 # storage
 #
