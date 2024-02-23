@@ -215,6 +215,9 @@ def meter_expanded_tx_convert_to_eth_tx(tx, blockHash, blockNum, txIndex):
             "input": tx["clauses"][0]["data"],
             "type":hex(_type),
             "maxPriorityFeePerGas": maxPriorityFeePerGas,
+            "r":tx.get("r", "0x"),
+            "s": tx.get("s", "0x"),
+            "v": tx.get("v", "0x"),
         }
         return res
     except Exception as e:

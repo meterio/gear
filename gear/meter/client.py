@@ -233,7 +233,7 @@ class MeterClient(object, metaclass=Singleton):
         txs = []
         for i,tx in enumerate(blk.get('transactions', [])):
             converted = meter_expanded_tx_convert_to_eth_tx(tx, blk.get('id', '0x'), blk.get('number',0), i)
-            converted['transactionIndex'] = i
+            converted['transactionIndex'] = encode_number(i)
             txs.append(converted)
         blk['transactions'] = txs
         return None if blk is None else meter_block_convert_to_eth_block(blk)
