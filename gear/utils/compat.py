@@ -154,7 +154,6 @@ def meter_tx_convert_to_eth_tx(tx):
     r = '0x0000000000000000000000000000000000000000000000000000000000000000'
     s = '0x0000000000000000000000000000000000000000000000000000000000000000'
     v = '0x0'
-    _type = 0
     maxFeePerGas = "0x0"
     maxPriorityFeePerGas = "0x0"
     chainId = "0"
@@ -187,7 +186,8 @@ def meter_tx_convert_to_eth_tx(tx):
             "r": r,
             "s": s,
             "v": v,
-            "type":hex(_type),
+            "type": encode_number(tx.get('type', 0)),
+            "chainId": tx.get("chainId","0x"),
             "maxPriorityFeePerGas": maxPriorityFeePerGas,
             "maxFeePerGas": maxFeePerGas,
             "chainId":hex(int(chainId)),
@@ -197,7 +197,6 @@ def meter_tx_convert_to_eth_tx(tx):
         print("ERROR: ", e)
 
 def meter_expanded_tx_convert_to_eth_tx(tx, blockHash, blockNum, txIndex):
-    _type = 0
     maxPriorityFeePerGas = "0x0"
    
     try:
@@ -213,11 +212,13 @@ def meter_expanded_tx_convert_to_eth_tx(tx, blockHash, blockNum, txIndex):
             "gas": encode_number(tx["gas"]),
             "gasPrice": encode_number(tx.get('gasPrice', 500e9)),
             "input": tx["clauses"][0]["data"],
-            "type":hex(_type),
-            "maxPriorityFeePerGas": maxPriorityFeePerGas,
-            "r":tx.get("r", "0x"),
-            "s": tx.get("s", "0x"),
-            "v": tx.get("v", "0x"),
+            "type": encode_number(tx.get('type', 0)),
+            "chainId": tx.get("chainId","0x0"),
+            "maxPriorityFeePerGas": tx.get('maxPriorityFeePerGas','0x0'),
+            "maxFeePerGas": tx.get('maxFeePerGas', '0x0'),
+            "r":tx.get("r", "0x0"),
+            "s": tx.get("s", "0x0"),
+            "v": tx.get("v", "0x0"),
         }
         return res
     except Exception as e:
