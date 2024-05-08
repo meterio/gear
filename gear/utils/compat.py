@@ -64,6 +64,8 @@ def meter_block_convert_to_eth_block(block):
         del block['committee']
     if 'qc' in block:
         del block['qc']
+    if not 'uncles' in block:
+        block['uncles'] = []
     return {
         ETH_BLOCK_KWARGS_MAP.get(k, k): BLOCK_FORMATTERS.get(k, noop)(v)
         for k, v in block.items()

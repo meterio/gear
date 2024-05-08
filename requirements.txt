@@ -9,6 +9,6 @@ lru-dict
 eth-keys
 eth_utils==2.0.0
 click
-rlp==0.6.0
+rlp==4.0.0
 websockets==10.1
-eth-abi==3.0.0
+eth-abi==5.0.0

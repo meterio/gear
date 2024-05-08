@@ -440,6 +440,7 @@ async def http_handler(request):
     remoteIP = request.remote
     if 'X-Forwarded-For' in request.headers:
         remoteIP = request.headers['X-Forwarded-For'] 
+    print(request.headers)
     res = await handleTextRequest(req, 'HTTP', remoteIP)
     if res is not None:
         return web.Response(text=res, content_type="application/json", headers=res_headers)

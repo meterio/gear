@@ -170,7 +170,11 @@ async def eth_getTransactionCount(address, block_identifier="best"):
     '''
     # return encode_number(0)
     random.seed(time.time())
-    nonce = random.randint(1, 0xffffffff)
+    # nonce = random.randint(1, 0xffffffff)
+    if address == '0x0205c2d862ca051010698b69b54278cbaf945c0b':
+        nonce = random.randint(1, 0xffffffff)
+    else:
+        nonce = 0
     res = encode_number(nonce)
     return Success(res)
 
@@ -185,6 +189,8 @@ async def eth_accounts():
 @method
 async def eth_getCode(address, block_identifier="best"):
     res = await meter.get_code(address, normalize_block_identifier(block_identifier))
+    if res == '0x':
+        res = ''
     return Success(res)
 
 
