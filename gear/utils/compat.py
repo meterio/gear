@@ -77,6 +77,14 @@ def meter_block_convert_to_eth_block(block):
 #
 def meter_receipt_convert_to_eth_receipt(receipt):
     logsBloom = '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'
+    events = []
+    transfers = []
+    if receipt and receipt['outputs']:
+        for output in receipt['outputs']:
+            events.extend(meter_receipt_log_convert_to_eth_log(receipt, index, log) for index, log in enumerate(output["events"]))
+            transfers.extend(output['transfers'])
+
+    
     return {
         "from": receipt["meta"]["txOrigin"],
         "status": encode_number(0 if receipt["reverted"] else 1),
@@ -89,10 +97,8 @@ def meter_receipt_convert_to_eth_receipt(receipt):
         "contractAddress": None if receipt["reverted"] else receipt["outputs"][0]["contractAddress"],
         "logsBloom": logsBloom,
         # "logs": None if receipt["reverted"] else [
-        "logs": [] if receipt["reverted"] else [
-            meter_receipt_log_convert_to_eth_log(receipt, index, log)
-            for index, log in enumerate(receipt["outputs"][0]["events"])
-        ],
+        "logs": [] if receipt["reverted"] else events,
+        "transfers": [] if receipt["reverted"] else transfers,
     }
 
 
@@ -159,6 +165,8 @@ def meter_tx_convert_to_eth_tx(tx):
     maxFeePerGas = "0x0"
     maxPriorityFeePerGas = "0x0"
     chainId = "0"
+    if ('chainId' in tx):
+        chainId = int(tx['chainId'],16)
     if 'ethTx' in tx:
         if tx["ethTx"] and tx["ethTx"]["r"] and tx["ethTx"]["s"] and tx["ethTx"]["v"]:
             r = tx["ethTx"]["r"]
