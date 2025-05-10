@@ -1,6 +1,5 @@
 import os
 import pbkdf2
-import scrypt
 from eth_keys import keys
 from eth_utils import to_bytes
 from Crypto.Cipher import AES
@@ -35,23 +34,6 @@ def pbkdf2_hash(val, params):
                          SHA256).read(params["dklen"])
 
 
-SCRYPT_CONSTANTS = {
-    "n": 262144,
-    "r": 1,
-    "p": 8,
-    "dklen": 32
-}
-
-
-def mk_scrypt_params():
-    params = SCRYPT_CONSTANTS.copy()
-    params['salt'] = encode_hex(os.urandom(16))
-    return params
-
-
-def scrypt_hash(val, params):
-    return scrypt.hash(str(val), decode_hex(params["salt"]), params["n"],
-                       params["r"], params["p"], params["dklen"])
 
 
 kdfs = {
@@ -59,10 +41,6 @@ kdfs = {
         "calc": pbkdf2_hash,
         "mkparams": mk_pbkdf2_params
     },
-    "scrypt": {
-        "calc": scrypt_hash,
-        "mkparams": mk_scrypt_params
-    }
 }
 
 

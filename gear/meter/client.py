@@ -248,6 +248,9 @@ class MeterClient(object, metaclass=Singleton):
             "revision": block_identifier
         }
         code = await self.accounts(address).code.make_request(get, params=params)
+        print("code", code)
+        if code['code'] == '0x':
+            code['code'] = ''
         return _attribute(code, "code")
 
     async def new_block_filter(self):

@@ -62,8 +62,6 @@ See https://docs.python.org/3/library/venv.html for more information
 
 1. Install Visual C++ Build Tools.
 
-2. Install [scrypt-py](https://pypi.org/project/scrypt/#files) use the precompiled wheels.
-
 3. Installation of Meter-Gear and it's dependent Python packages via PyPI
 
     ```

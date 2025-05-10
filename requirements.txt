@@ -1,6 +1,5 @@
 pbkdf2
 pycryptodome
-scrypt
 werkzeug
 requests
 aiohttp
@@ -12,3 +11,4 @@ click
 rlp==4.0.0
 websockets==10.1
 eth-abi==5.0.0
+setuptools
