@@ -1,6 +1,7 @@
 from jsonrpcserver import Error, async_dispatch
 import json
 import asyncio
+import os
 import websockets
 import hashlib
 import aiohttp
@@ -23,6 +24,13 @@ from .utils.types import (
     encode_number
 )
 from .meter.client import meter
+from .limits import WeightedLimiter
+from .meter.request import (
+    close_session,
+    configure_backend,
+    start_backend_controller,
+)
+from .resources import load_runtime_limits
 import requests
 import click
 
@@ -31,12 +39,28 @@ from .rpc import get_block
 res_headers = {
     "Access-Control-Allow-Headers": "*",
     "Access-Control-Allow-Origin": "*",
-    "Connection": "keep-alive",
 }
 
 logging.config.dictConfig(LOGGING_CONFIG)
 
 logger = logging.getLogger('gear')
+
+MAX_BATCH_SIZE = int(os.getenv("GEAR_MAX_BATCH_SIZE", "50"))
+MAX_REQUEST_SIZE = int(os.getenv("GEAR_MAX_REQUEST_SIZE", "1048576"))
+RPC_CONCURRENCY = int(os.getenv("GEAR_RPC_CONCURRENCY", "256"))
+RPC_PER_IP_CONCURRENCY = int(
+    os.getenv("GEAR_RPC_PER_IP_CONCURRENCY", "8")
+)
+RPC_QUEUE_TIMEOUT = float(os.getenv("GEAR_RPC_QUEUE_TIMEOUT", "0.05"))
+RPC_PER_IP_OPERATION_LIMIT = int(
+    os.getenv("GEAR_RPC_PER_IP_OPERATION_LIMIT", "64")
+)
+rpc_slots = None
+rpc_client_counts = {}
+rpc_client_lock = None
+rpc_operation_slots = None
+rpc_operation_client_counts = {}
+rpc_operation_client_lock = None
 
 SUB_ID = '0x00640404976e52864c3cfd120e5cc28aac3f644748ee6e8be185fb780cdfd827'
 
@@ -435,21 +459,212 @@ async def handleTextRequest(reqText, protocol, remoteIP):
 
 
 
+def rpc_error(code, message, request_id=None):
+    return {
+        "jsonrpc": "2.0",
+        "error": {"code": code, "message": message},
+        "id": request_id,
+    }
+
+
+def get_remote_ip(request):
+    remote_ip = request.headers.get('X-Forwarded-For', request.remote)
+    remote_ip = remote_ip or "unknown"
+    return remote_ip.split(',', 1)[0].strip()
+
+
+async def acquire_client_slot(remote_ip):
+    async with rpc_client_lock:
+        active = rpc_client_counts.get(remote_ip, 0)
+        if active >= RPC_PER_IP_CONCURRENCY:
+            return False
+        rpc_client_counts[remote_ip] = active + 1
+        return True
+
+
+async def release_client_slot(remote_ip):
+    async with rpc_client_lock:
+        active = rpc_client_counts.get(remote_ip, 0)
+        if active <= 1:
+            rpc_client_counts.pop(remote_ip, None)
+        else:
+            rpc_client_counts[remote_ip] = active - 1
+
+
+async def acquire_rpc_slot(remote_ip):
+    if not await acquire_client_slot(remote_ip):
+        return False, "client"
+    acquired = await rpc_slots.acquire(timeout=RPC_QUEUE_TIMEOUT)
+    if acquired:
+        return True, None
+    await release_client_slot(remote_ip)
+    return False, "global"
+
+
+async def release_rpc_slot(remote_ip):
+    await rpc_slots.release()
+    await release_client_slot(remote_ip)
+
+
+def rpc_operation_weight(payload):
+    return len(payload) if isinstance(payload, list) else 1
+
+
+async def acquire_client_operation_slots(remote_ip, weight):
+    async with rpc_operation_client_lock:
+        active = rpc_operation_client_counts.get(remote_ip, 0)
+        if active + weight > RPC_PER_IP_OPERATION_LIMIT:
+            return False
+        rpc_operation_client_counts[remote_ip] = active + weight
+        return True
+
+
+async def release_client_operation_slots(remote_ip, weight):
+    async with rpc_operation_client_lock:
+        active = rpc_operation_client_counts.get(remote_ip, 0)
+        remaining = active - weight
+        if remaining <= 0:
+            rpc_operation_client_counts.pop(remote_ip, None)
+        else:
+            rpc_operation_client_counts[remote_ip] = remaining
+
+
+async def acquire_operation_slots(remote_ip, weight):
+    if not await acquire_client_operation_slots(remote_ip, weight):
+        return False, "client"
+    acquired = await rpc_operation_slots.acquire(
+        weight=weight,
+        timeout=RPC_QUEUE_TIMEOUT,
+    )
+    if acquired:
+        return True, None
+    await release_client_operation_slots(remote_ip, weight)
+    return False, "global"
+
+
+async def release_operation_slots(remote_ip, weight):
+    await rpc_operation_slots.release(weight=weight)
+    await release_client_operation_slots(remote_ip, weight)
+
+
+def overloaded_response(limit, operation=False):
+    client_limited = limit == "client"
+    if operation:
+        client_message = "Client operation concurrency limit exceeded"
+        global_message = "RPC operation capacity is busy"
+    else:
+        client_message = "Client concurrency limit exceeded"
+        global_message = "RPC server is busy"
+    return web.json_response(
+        rpc_error(
+            -32005,
+            client_message if client_limited else global_message,
+        ),
+        status=429 if client_limited else 503,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+            "Retry-After": "1",
+            "Connection": "close",
+        },
+    )
+
+
+@web.middleware
+async def rpc_concurrency_middleware(request, handler):
+    remote_ip = get_remote_ip(request)
+    acquired, limit = await acquire_rpc_slot(remote_ip)
+    if not acquired:
+        return overloaded_response(limit)
+
+    try:
+        return await handler(request)
+    finally:
+        await release_rpc_slot(remote_ip)
+
+
+async def dispatch_ws_request(req, remote_ip, payload=None):
+    acquired, limit = await acquire_rpc_slot(remote_ip)
+    if not acquired:
+        message = (
+            "Client concurrency limit exceeded"
+            if limit == "client"
+            else "RPC server is busy"
+        )
+        return json.dumps(rpc_error(-32005, message)), True
+    operation_acquired = False
+    weight = 1
+    try:
+        if payload is None:
+            payload = json.loads(req)
+        weight = rpc_operation_weight(payload)
+        operation_acquired, operation_limit = await acquire_operation_slots(
+            remote_ip,
+            weight,
+        )
+        if not operation_acquired:
+            message = (
+                "Client operation concurrency limit exceeded"
+                if operation_limit == "client"
+                else "RPC operation capacity is busy"
+            )
+            return json.dumps(rpc_error(-32005, message)), True
+        return await handleTextRequest(req, 'WS', remote_ip), False
+    finally:
+        if operation_acquired:
+            await release_operation_slots(remote_ip, weight)
+        await release_rpc_slot(remote_ip)
+
+
 async def http_handler(request):
     req = await request.text()
-    remoteIP = request.remote
-    if 'X-Forwarded-For' in request.headers:
-        remoteIP = request.headers['X-Forwarded-For'] 
-    print(request.headers)
-    res = await handleTextRequest(req, 'HTTP', remoteIP)
+    try:
+        payload = json.loads(req)
+    except JSONDecodeError:
+        return web.json_response(
+            rpc_error(-32700, "Parse error"),
+            status=400,
+            headers=res_headers,
+        )
+
+    if isinstance(payload, list):
+        if not payload or len(payload) > MAX_BATCH_SIZE:
+            return web.json_response(
+                rpc_error(
+                    -32005,
+                    "Maximum batch size is {}".format(MAX_BATCH_SIZE),
+                ),
+                status=429,
+                headers=res_headers,
+            )
+
+    remoteIP = get_remote_ip(request)
+    weight = rpc_operation_weight(payload)
+    acquired, limit = await acquire_operation_slots(remoteIP, weight)
+    if not acquired:
+        return overloaded_response(limit, operation=True)
+    try:
+        res = await handleTextRequest(req, 'HTTP', remoteIP)
+    finally:
+        await release_operation_slots(remoteIP, weight)
     if res is not None:
-        return web.Response(text=res, content_type="application/json", headers=res_headers)
+        return web.Response(
+            text=res,
+            content_type="application/json",
+            headers=res_headers,
+        )
+    return web.json_response(
+        rpc_error(-32603, "Internal error"),
+        status=500,
+        headers=res_headers,
+    )
 
 
 async def websocket_handler(request):
     ws = web.WebSocketResponse()
     await ws.prepare(request)
     key = request.headers.get("sec-websocket-key", "")
+    remoteIP = get_remote_ip(request)
     async for msg in ws:
         # logger.info('ws req: %s', msg)
         if msg.type == aiohttp.WSMsgType.ERROR:
@@ -466,6 +681,22 @@ async def websocket_handler(request):
 
             try:
                 jreq = json.loads(msg.data)
+                if isinstance(jreq, list):
+                    if not jreq or len(jreq) > MAX_BATCH_SIZE:
+                        await ws.send_str(json.dumps(rpc_error(
+                            -32005,
+                            "Maximum batch size is {}".format(MAX_BATCH_SIZE),
+                        )))
+                        continue
+                    res, _ = await dispatch_ws_request(
+                        msg.data,
+                        remoteIP,
+                        payload=jreq,
+                    )
+                    await ws.send_str(res)
+                    continue
+                if not isinstance(jreq, dict):
+                    continue
                 if 'method' not in jreq or 'id' not in jreq:
                     # not a valid json request
                     continue
@@ -531,8 +762,15 @@ async def websocket_handler(request):
                 await ws.close()
             elif (method == 'eth_getTransactionReceipt'):
                 # handle tx receipt
-                res = await handleTextRequest(msg.data, 'WS', request.remote)
-                if res and json.loads(res)['result']:
+                res, overloaded = await dispatch_ws_request(
+                    msg.data,
+                    remoteIP,
+                    payload=jreq,
+                )
+                if overloaded:
+                    await ws.send_str(res)
+                    continue
+                if res and json.loads(res).get('result'):
                     logger.info("forward response to ws %s", key)
                     await ws.send_str(res)
                 else:
@@ -543,7 +781,11 @@ async def websocket_handler(request):
                     logger.info("WAITING FOR RECEIPT: %s, conn:%s, id:%s", txHash, key, id)
             else:
                 # handle normal requests
-                res = await handleTextRequest(msg.data, 'WS', request.remote)
+                res, _ = await dispatch_ws_request(
+                    msg.data,
+                    remoteIP,
+                    payload=jreq,
+                )
                 logger.info("forward response to ws %s", key)
                 await ws.send_str(res)
 
@@ -558,6 +800,75 @@ async def websocket_handler(request):
 
 
 async def run_server(host, port, endpoint, keystore, passcode, log, debug):
+    global RPC_CONCURRENCY
+    global RPC_PER_IP_OPERATION_LIMIT
+    global rpc_slots
+    global rpc_client_counts
+    global rpc_client_lock
+    global rpc_operation_slots
+    global rpc_operation_client_counts
+    global rpc_operation_client_lock
+
+    limits = load_runtime_limits()
+    RPC_CONCURRENCY = limits.rpc_concurrency
+    RPC_PER_IP_OPERATION_LIMIT = limits.per_ip_operation_limit
+    rpc_slots = WeightedLimiter(limits.rpc_concurrency)
+    rpc_client_counts = {}
+    rpc_client_lock = asyncio.Lock()
+    rpc_operation_slots = WeightedLimiter(limits.rpc_operation_limit)
+    rpc_operation_client_counts = {}
+    rpc_operation_client_lock = asyncio.Lock()
+
+    async def resize_rpc_limits(backend_limit):
+        derived = backend_limit * 2
+        changes = []
+        if limits.rpc_concurrency_dynamic:
+            capacity = min(limits.rpc_concurrency_max, derived)
+            await rpc_slots.set_capacity(capacity)
+            changes.append("requests={}".format(capacity))
+        if limits.rpc_operation_limit_dynamic:
+            capacity = min(limits.rpc_operation_limit_max, derived)
+            await rpc_operation_slots.set_capacity(capacity)
+            changes.append("operations={}".format(capacity))
+        if changes:
+            logger.info("Resized RPC admission limits: %s", ", ".join(changes))
+
+    configure_backend(
+        initial=limits.backend_initial,
+        minimum=limits.backend_min,
+        maximum=limits.backend_max,
+        adaptive=limits.auto_tune,
+        on_limit_change=resize_rpc_limits,
+    )
+    start_backend_controller()
+
+    logger.info(
+        "Detected resources: CPUs=%.2f memory=%.2fGiB nofile=%d:%d",
+        limits.resources.cpus,
+        limits.resources.memory_bytes / float(1024 ** 3),
+        limits.resources.nofile_soft,
+        limits.resources.nofile_hard,
+    )
+    logger.info(
+        "Gear limits: autotune=%s backend=%d[%d..%d] "
+        "requests=%d(max=%d dynamic=%s) "
+        "operations=%d(max=%d dynamic=%s) per_ip_requests=%d "
+        "per_ip_operations=%d batch=%d",
+        limits.auto_tune,
+        limits.backend_initial,
+        limits.backend_min,
+        limits.backend_max,
+        limits.rpc_concurrency,
+        limits.rpc_concurrency_max,
+        limits.rpc_concurrency_dynamic,
+        limits.rpc_operation_limit,
+        limits.rpc_operation_limit_max,
+        limits.rpc_operation_limit_dynamic,
+        RPC_PER_IP_CONCURRENCY,
+        RPC_PER_IP_OPERATION_LIMIT,
+        MAX_BATCH_SIZE,
+    )
+
     try:
         response = requests.options(endpoint)
         response.raise_for_status()
@@ -570,7 +881,10 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug):
     else:
         meter.set_accounts(_keystore(keystore, passcode))
 
-    http_app = web.Application()
+    http_app = web.Application(
+        middlewares=[rpc_concurrency_middleware],
+        client_max_size=MAX_REQUEST_SIZE,
+    )
     http_app.router.add_post("/", http_handler)
     http_app.router.add_get("/", lambda r: web.Response(headers=res_headers))
     http_app.router.add_options(
@@ -601,8 +915,12 @@ async def run_server(host, port, endpoint, keystore, passcode, log, debug):
     asyncio.create_task(run_event_observer(endpoint))
     # asyncio.create_task(housekeeping())
     asyncio.create_task(run_best_block_updater())
-    await asyncio.Event().wait()
-    logger.info("after the loop")
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await close_session()
+        await http_runner.cleanup()
+        await ws_runner.cleanup()
 
 
 @click.command()

@@ -88,6 +88,68 @@ You can change its default behavior with the following parameters:
 - **debug**: bool default=false, whether to display debug logs, eg: `--debug true`
 - **log**: bool default=false, whether to display rpc logs, eg: `--log false`
 
+### Resource limits and auto-tuning
+
+Meter-Gear detects the CPU quota and memory limit from Linux cgroups and the
+process file-descriptor limit from `RLIMIT_NOFILE`. It uses those resources to
+set a safe Meter REST connection ceiling. The auto-tuner starts at 128 backend
+calls (or the lower resource ceiling), then uses backend p95 latency, error
+rate, saturation, and event-loop lag to increase or decrease concurrency.
+
+The startup log includes the detected resources and every calculated limit.
+Explicit request or operation limits remain fixed; unset limits follow the
+backend auto-tuner.
+
+| Variable | Default | Purpose |
+| --- | ---: | --- |
+| `GEAR_AUTOTUNE` | `1` | Enable container-aware sizing and runtime adaptation |
+| `GEAR_BACKEND_CONNECTION_LIMIT` | `128` | Initial backend concurrency; fixed value when auto-tuning is disabled |
+| `GEAR_BACKEND_CONNECTION_MIN` | `64` | Lower adaptive backend bound, capped by available resources |
+| `GEAR_BACKEND_CONNECTION_MAX` | `512` | Upper adaptive/connector bound, capped by available resources |
+| `GEAR_RPC_CONCURRENCY` | automatic | Concurrent HTTP requests and WebSocket messages; setting it disables automatic resizing for this limit |
+| `GEAR_RPC_CONCURRENCY_MAX` | `1024` | Maximum automatically resized request limit |
+| `GEAR_RPC_OPERATION_LIMIT` | automatic | Concurrent JSON-RPC operations; defaults to twice backend concurrency |
+| `GEAR_RPC_OPERATION_LIMIT_MAX` | `1024` | Maximum automatically resized operation limit |
+| `GEAR_RPC_PER_IP_CONCURRENCY` | `8` | Concurrent request envelopes allowed from one client IP |
+| `GEAR_RPC_PER_IP_OPERATION_LIMIT` | `64` | Concurrent JSON-RPC operations allowed from one client IP |
+| `GEAR_RPC_QUEUE_TIMEOUT` | `0.05` | Seconds to wait for request/operation admission |
+| `GEAR_BACKEND_QUEUE_TIMEOUT` | `0.25` | Seconds a Meter REST call waits for adaptive backend capacity |
+| `GEAR_MAX_BATCH_SIZE` | `50` | Maximum calls in one JSON-RPC batch |
+| `GEAR_MAX_REQUEST_SIZE` | `1048576` | Maximum HTTP request body in bytes |
+
+Each JSON-RPC batch consumes operation capacity equal to its element count. A
+batch of 50 therefore consumes 50 slots instead of bypassing the limiter as
+one HTTP request. Every actual Meter REST call is also bounded before it can
+enter the `aiohttp` connection queue.
+
+Auto-tuning behavior can be adjusted with these advanced settings:
+
+| Variable | Default | Purpose |
+| --- | ---: | --- |
+| `GEAR_AUTOTUNE_INTERVAL` | `10` | Seconds between adaptive evaluations |
+| `GEAR_AUTOTUNE_WINDOW` | `60` | Rolling backend sample window in seconds |
+| `GEAR_AUTOTUNE_MIN_SAMPLES` | `20` | Minimum completed calls before changing a limit |
+| `GEAR_BACKEND_TARGET_P95` | `0.5` | Healthy backend p95 latency in seconds |
+| `GEAR_BACKEND_ERROR_THRESHOLD` | `0.02` | Error fraction that triggers a decrease |
+| `GEAR_EVENT_LOOP_LAG_THRESHOLD` | `0.2` | Event-loop lag in seconds that triggers a decrease |
+| `GEAR_BACKEND_TOTAL_TIMEOUT` | `10` | Total Meter REST timeout in seconds |
+| `GEAR_BACKEND_CONNECT_TIMEOUT` | `2` | Meter REST connection timeout in seconds |
+| `GEAR_BACKEND_READ_TIMEOUT` | `8` | Meter REST read timeout in seconds |
+| `GEAR_BACKEND_KEEPALIVE_TIMEOUT` | `15` | Idle pooled connection lifetime in seconds |
+
+Oversized or per-IP-limited requests return HTTP 429. Globally saturated
+requests return HTTP 503 instead of creating unbounded backend work.
+
+For Docker deployments, set the file-descriptor limit on the container rather
+than changing it after startup. The included Compose configuration uses:
+
+```yaml
+ulimits:
+  nofile:
+    soft: 65536
+    hard: 524288
+```
+
 ### Use Remix
 
 Change the Remix environment to Web3 provide.
